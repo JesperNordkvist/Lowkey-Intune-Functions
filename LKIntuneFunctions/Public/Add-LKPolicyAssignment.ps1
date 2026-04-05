@@ -7,7 +7,7 @@ function Add-LKPolicyAssignment {
     .EXAMPLE
         Add-LKPolicyAssignment -GroupName 'TestDevices' -PolicyId 'abc-123' -PolicyType SettingsCatalog
     #>
-    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High', DefaultParameterSetName = 'ByPipeline')]
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High', DefaultParameterSetName = 'ByName')]
     param(
         [Parameter(Mandatory)]
         [string]$GroupName,
@@ -23,19 +23,55 @@ function Add-LKPolicyAssignment {
             'DeviceConfiguration', 'SettingsCatalog', 'CompliancePolicy', 'EndpointSecurity',
             'AppProtectionIOS', 'AppProtectionAndroid', 'AppProtectionWindows',
             'AppConfiguration', 'EnrollmentConfiguration', 'PolicySet',
-            'GroupPolicyConfiguration', 'PowerShellScript', 'ProactiveRemediation',
+            'GroupPolicyConfiguration', 'PlatformScript', 'Remediation',
             'DriverUpdate', 'MobileApp'
         )]
-        [string]$PolicyType
+        [string]$PolicyType,
+
+        [Parameter(Mandatory, ParameterSetName = 'ByName')]
+        [string[]]$PolicyName,
+
+        [Parameter(ParameterSetName = 'ByName')]
+        [ValidateSet('Contains', 'Exact', 'Wildcard', 'Regex')]
+        [string]$NameMatch = 'Contains',
+
+        [Parameter(ParameterSetName = 'ByName')]
+        [ValidateSet(
+            'DeviceConfiguration', 'SettingsCatalog', 'CompliancePolicy', 'EndpointSecurity',
+            'AppProtectionIOS', 'AppProtectionAndroid', 'AppProtectionWindows',
+            'AppConfiguration', 'EnrollmentConfiguration', 'PolicySet',
+            'GroupPolicyConfiguration', 'PlatformScript', 'Remediation',
+            'DriverUpdate', 'MobileApp'
+        )]
+        [string[]]$SearchPolicyType
     )
 
     begin {
         Assert-LKSession
         $groupId = Resolve-LKGroupId -GroupName $GroupName
         $groupScope = Resolve-LKGroupScope -GroupId $groupId
+
+        # ByName: resolve policies upfront
+        if ($PSCmdlet.ParameterSetName -eq 'ByName') {
+            $lookupParams = @{ Name = $PolicyName; NameMatch = $NameMatch }
+            if ($SearchPolicyType) { $lookupParams['PolicyType'] = $SearchPolicyType }
+            $resolvedPolicies = @(Get-LKPolicy @lookupParams)
+            if ($resolvedPolicies.Count -eq 0) {
+                Write-Warning "No policies found matching '$($PolicyName -join "', '")' with $NameMatch match."
+            }
+        }
     }
 
     process {
+        if ($PSCmdlet.ParameterSetName -eq 'ByName') {
+            foreach ($pol in $resolvedPolicies) {
+                $confirmParam = @{}
+                if ($PSBoundParameters.ContainsKey('Confirm')) { $confirmParam['Confirm'] = $PSBoundParameters['Confirm'] }
+                Add-LKPolicyAssignment -InputObject $pol -GroupName $GroupName @confirmParam
+            }
+            return
+        }
+
         if ($InputObject) {
             $id   = $InputObject.Id
             $type = $InputObject.PolicyType

@@ -13,19 +13,20 @@ function Set-LKRawAssignment {
     )
 
     if ($PolicyType.AssignmentMethod -eq 'GroupAssignments') {
-        # Scripts use individual groupAssignment resources
-        # Clear existing and re-create
-        $existing = Get-LKRawAssignment -PolicyId $PolicyId -PolicyType $PolicyType
-        foreach ($assignment in $existing) {
-            $deletePath = "$($PolicyType.Endpoint)/$PolicyId/groupAssignments/$($assignment.id)"
-            Invoke-LKGraphRequest -Method DELETE -Uri $deletePath -ApiVersion $PolicyType.ApiVersion | Out-Null
+        # Scripts use the /assign action with a specific body format
+        $assignPath = "$($PolicyType.Endpoint)/$PolicyId/assign"
+        $groupAssignments = @($Assignments | ForEach-Object {
+            @{
+                '@odata.type' = '#microsoft.graph.deviceManagementScriptGroupAssignment'
+                id            = "$PolicyId`_$($_.target.groupId)"
+                targetGroupId = $_.target.groupId
+            }
+        })
+        $body = @{
+            deviceManagementScriptGroupAssignments = $groupAssignments
+            deviceManagementScriptAssignments      = @()
         }
-        foreach ($assignment in $Assignments) {
-            $createPath = "$($PolicyType.Endpoint)/$PolicyId/groupAssignments"
-            # Convert Standard target format back to GroupAssignments format
-            $body = @{ targetGroupId = $assignment.target.groupId }
-            Invoke-LKGraphRequest -Method POST -Uri $createPath -ApiVersion $PolicyType.ApiVersion -Body $body | Out-Null
-        }
+        Invoke-LKGraphRequest -Method POST -Uri $assignPath -ApiVersion $PolicyType.ApiVersion -Body $body | Out-Null
         return
     }
 

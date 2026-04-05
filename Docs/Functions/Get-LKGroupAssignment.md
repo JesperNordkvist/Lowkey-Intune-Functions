@@ -8,8 +8,9 @@ Finds all Intune policies where a specific group is assigned (included or exclud
 # By name (default)
 Get-LKGroupAssignment
     -Name <String[]>
-    [-NameMatch <String>]     # 'Contains' (default) | 'Exact' | 'Wildcard' | 'Regex'
+    [-NameMatch <String>]        # 'Contains' (default) | 'Exact' | 'Wildcard' | 'Regex'
     [-PolicyType <String[]>]
+    [-AssignmentType <String>]   # 'Include' (default) | 'Exclude' | 'All'
     [-SkipScopeResolution]
     [<CommonParameters>]
 
@@ -17,6 +18,7 @@ Get-LKGroupAssignment
 Get-LKGroupAssignment
     -GroupId <String>
     [-PolicyType <String[]>]
+    [-AssignmentType <String>]   # 'Include' (default) | 'Exclude' | 'All'
     [-SkipScopeResolution]
     [<CommonParameters>]
 ```
@@ -72,7 +74,18 @@ Limits the scan to one or more specific policy types. If omitted, all types are 
 | Default: | -- (all types) |
 | Required: | No |
 | Pipeline: | No |
-| Valid values: | DeviceConfiguration, SettingsCatalog, CompliancePolicy, EndpointSecurity, AppProtectionIOS, AppProtectionAndroid, AppProtectionWindows, AppConfiguration, EnrollmentConfiguration, PolicySet, GroupPolicyConfiguration, PowerShellScript, ProactiveRemediation, DriverUpdate, MobileApp |
+| Valid values: | DeviceConfiguration, SettingsCatalog, CompliancePolicy, EndpointSecurity, AppProtectionIOS, AppProtectionAndroid, AppProtectionWindows, AppConfiguration, EnrollmentConfiguration, PolicySet, GroupPolicyConfiguration, PlatformScript, Remediation, DriverUpdate, MobileApp |
+
+### -AssignmentType
+Controls which assignment types are returned. Defaults to `Include`, which shows only policies where the group is actively targeted (include assignments and broad targets like All Devices/All Users). Use `Exclude` to see only exclusions, or `All` to see everything.
+
+| | |
+|---|---|
+| Type: | String |
+| Default: | Include |
+| Required: | No |
+| Pipeline: | No |
+| Valid values: | Include, Exclude, All |
 
 ### -SkipScopeResolution
 Disables dynamic scope resolution for policy types with a static scope of "Both". When set, the static registry scope is used instead, which is faster but means `ScopeMismatch` will be `$null` for types like SettingsCatalog and DeviceConfiguration.
@@ -135,6 +148,18 @@ Get-LKGroupAssignment -Name 'SG-Intune-*' -NameMatch Wildcard -PolicyType Compli
 Scans only Compliance policies for assignments to groups matching the wildcard pattern.
 
 ### Example 6
+```powershell
+Get-LKGroupAssignment -Name 'Pilot Devices' -AssignmentType Exclude
+```
+Shows only policies where the group is excluded.
+
+### Example 7
+```powershell
+Get-LKGroupAssignment -Name 'Pilot Devices' -AssignmentType All
+```
+Shows both include and exclude assignments for the group.
+
+### Example 8
 ```powershell
 Get-LKGroupAssignment -GroupId 'abc-123' -PolicyType CompliancePolicy, SettingsCatalog
 ```

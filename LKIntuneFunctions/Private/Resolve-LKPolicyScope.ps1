@@ -21,24 +21,28 @@ function Resolve-LKPolicyScope {
     switch ($PolicyType.TypeName) {
 
         'SettingsCatalog' {
-            # 1) Check templateFamily - endpoint security templates are device-scoped
-            $family = $RawPolicy.templateReference.templateFamily
-            if ($family -and $family -ne 'none') {
-                if ($family -like 'endpointSecurity*') { return 'Device' }
-            }
-
-            # 2) Fetch first setting and inspect the settingDefinitionId prefix
+            # 1) Fetch first setting and inspect the settingDefinitionId prefix
+            #    This is the most reliable signal — definition IDs are prefixed with device_ or user_
+            #    Note: we check this BEFORE templateFamily because some endpoint security
+            #    templates (e.g. Personal Data Encryption) are user-scoped despite the family name
             try {
-                $settings = Invoke-LKGraphRequest -Method GET `
+                $settingsResponse = Invoke-LKGraphRequest -Method GET `
                     -Uri "/deviceManagement/configurationPolicies/$($RawPolicy.id)/settings?`$top=1" `
                     -ApiVersion 'beta'
-                if ($settings -and $settings.Count -gt 0) {
-                    $defId = $settings[0].settingInstance.settingDefinitionId
+                $settingsList = $settingsResponse.value
+                if ($settingsList -and $settingsList.Count -gt 0) {
+                    $defId = $settingsList[0].settingInstance.settingDefinitionId
                     if ($defId -like 'device_*') { return 'Device' }
                     if ($defId -like 'user_*')   { return 'User' }
                 }
             } catch {
                 Write-Verbose "Resolve-LKPolicyScope: failed to fetch settings for SettingsCatalog policy $($RawPolicy.id): $($_.Exception.Message)"
+            }
+
+            # 2) Fallback: check templateFamily — most endpoint security templates are device-scoped
+            $family = $RawPolicy.templateReference.templateFamily
+            if ($family -and $family -ne 'none') {
+                if ($family -like 'endpointSecurity*') { return 'Device' }
             }
 
             return 'Both'
@@ -81,11 +85,12 @@ function Resolve-LKPolicyScope {
         'GroupPolicyConfiguration' {
             # Check the classType on the first definition value
             try {
-                $defValues = Invoke-LKGraphRequest -Method GET `
+                $defValuesResponse = Invoke-LKGraphRequest -Method GET `
                     -Uri "/deviceManagement/groupPolicyConfigurations/$($RawPolicy.id)/definitionValues?`$expand=definition&`$top=1" `
                     -ApiVersion 'beta'
-                if ($defValues -and $defValues.Count -gt 0) {
-                    $classType = $defValues[0].definition.classType
+                $defValuesList = $defValuesResponse.value
+                if ($defValuesList -and $defValuesList.Count -gt 0) {
+                    $classType = $defValuesList[0].definition.classType
                     if ($classType -eq 'user')    { return 'User' }
                     if ($classType -eq 'machine') { return 'Device' }
                 }

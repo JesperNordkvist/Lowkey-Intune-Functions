@@ -5,7 +5,15 @@ Adds a group as an exclusion to one or more Intune policies.
 
 ## Syntax
 ```powershell
-# Pipeline (default)
+# By name (default)
+Add-LKPolicyExclusion
+    -GroupName <String>
+    -PolicyName <String[]>
+    [-NameMatch <String>]
+    [-WhatIf] [-Confirm]
+    [<CommonParameters>]
+
+# Pipeline
 Add-LKPolicyExclusion
     -GroupName <String>
     [-InputObject <PSCustomObject>]
@@ -24,7 +32,7 @@ Add-LKPolicyExclusion
 ## Description
 For each target policy, fetches the current assignments, appends an exclusion entry for the specified group, and writes back the complete assignment set using a replace-all pattern. Policies that already exclude the group are silently skipped. Supports `-WhatIf` and `-Confirm` for safe previewing.
 
-The target policies can come from pipeline input (e.g. from `Get-LKPolicy`) or the `-All` switch can be used to target every policy, optionally filtered by `-PolicyType`.
+The target policies can be found by name, received from pipeline input (e.g. from `Get-LKPolicy`), or the `-All` switch can target every policy, optionally filtered by `-PolicyType`.
 
 ## Parameters
 
@@ -34,9 +42,24 @@ The exact display name of the Entra ID group to add as an exclusion.
 | | |
 |---|---|
 | Type: | String |
-| Default: | -- |
 | Required: | Yes |
-| Pipeline: | No |
+
+### -PolicyName
+One or more policy name patterns to match. Uses `-NameMatch` to control matching behaviour.
+
+| | |
+|---|---|
+| Type: | String[] |
+| Required: | Yes (ByName set) |
+
+### -NameMatch
+How `-PolicyName` is matched. Default: `Contains`.
+
+| | |
+|---|---|
+| Type: | String |
+| Default: | Contains |
+| Valid values: | Contains, Exact, Wildcard, Regex |
 
 ### -InputObject
 A policy object from `Get-LKPolicy`. Accepted from the pipeline.
@@ -44,8 +67,6 @@ A policy object from `Get-LKPolicy`. Accepted from the pipeline.
 | | |
 |---|---|
 | Type: | PSCustomObject |
-| Default: | -- |
-| Required: | No |
 | Pipeline: | ByValue |
 
 ### -All
@@ -54,9 +75,7 @@ Targets all Intune policies. Can be narrowed with `-PolicyType`.
 | | |
 |---|---|
 | Type: | SwitchParameter |
-| Default: | False |
 | Required: | Yes (All set) |
-| Pipeline: | No |
 
 ### -PolicyType
 When used with `-All`, limits the operation to one or more specific policy types.
@@ -65,9 +84,7 @@ When used with `-All`, limits the operation to one or more specific policy types
 |---|---|
 | Type: | String[] |
 | Default: | -- (all types) |
-| Required: | No |
-| Pipeline: | No |
-| Valid values: | DeviceConfiguration, SettingsCatalog, CompliancePolicy, EndpointSecurity, AppProtectionIOS, AppProtectionAndroid, AppProtectionWindows, AppConfiguration, EnrollmentConfiguration, PolicySet, GroupPolicyConfiguration, PowerShellScript, ProactiveRemediation, DriverUpdate, MobileApp |
+| Valid values: | DeviceConfiguration, SettingsCatalog, CompliancePolicy, EndpointSecurity, AppProtectionIOS, AppProtectionAndroid, AppProtectionWindows, AppConfiguration, EnrollmentConfiguration, PolicySet, GroupPolicyConfiguration, PlatformScript, Remediation, DriverUpdate, MobileApp |
 
 ## Outputs
 `PSCustomObject` per modified policy with properties:
@@ -79,32 +96,39 @@ When used with `-All`, limits the operation to one or more specific policy types
 
 ## Examples
 
-### Example 1
+### Example 1 -- Exclude a device group from user-scoped policies by name
 ```powershell
-Add-LKPolicyExclusion -GroupName 'SG-Intune-TestDevices' -All
+Add-LKPolicyExclusion -PolicyName "- U -" -GroupName 'XW365-Intune-D-Pilot Devices'
 ```
-Adds the group "SG-Intune-TestDevices" as an exclusion on every Intune policy.
+Excludes a device group from all policies containing "- U -" in the name (user-scoped by naming convention).
 
-### Example 2
+### Example 2 -- Exclude from all policies of a specific type
 ```powershell
 Add-LKPolicyExclusion -GroupName 'SG-Intune-TestDevices' -All -PolicyType CompliancePolicy
 ```
 Adds the exclusion only to Compliance policies.
 
-### Example 3
+### Example 3 -- Exclude from all policies
+```powershell
+Add-LKPolicyExclusion -GroupName 'SG-Intune-TestDevices' -All
+```
+Adds the group as an exclusion on every Intune policy.
+
+### Example 4 -- Pipeline from Get-LKPolicy
 ```powershell
 Get-LKPolicy -Name "XW365" | Add-LKPolicyExclusion -GroupName 'TestGroup'
 ```
 Adds the exclusion to all policies whose name contains "XW365".
 
-### Example 4
+### Example 5 -- Preview changes
 ```powershell
-Add-LKPolicyExclusion -GroupName 'TestGroup' -All -WhatIf
+Add-LKPolicyExclusion -PolicyName "Baseline*" -NameMatch Wildcard -GroupName 'TestGroup' -WhatIf
 ```
 Previews which policies would be modified without making any changes.
 
 ## Notes
 - Requires an active session (`New-LKSession`).
-- Uses the replace-all assignment pattern: the entire assignment array is read, modified, and written back. This is the standard approach for Intune Graph API assignment management.
+- Uses the replace-all assignment pattern: the entire assignment array is read, modified, and written back.
 - Policies that already exclude the group are skipped with a verbose message.
-- See also: `Remove-LKPolicyExclusion`, `Add-LKPolicyAssignment`.
+- Performs a scope mismatch check: if the group scope is incompatible with the policy scope, the exclusion is skipped with a warning.
+- See also: `Remove-LKPolicyExclusion`, `Add-LKPolicyAssignment`, `Test-LKPolicyAssignment`.

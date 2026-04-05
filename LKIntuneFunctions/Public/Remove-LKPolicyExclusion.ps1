@@ -7,7 +7,7 @@ function Remove-LKPolicyExclusion {
     .EXAMPLE
         Get-LKPolicy -Name "XW365" | Remove-LKPolicyExclusion -GroupName 'TestGroup'
     #>
-    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High', DefaultParameterSetName = 'ByPipeline')]
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High', DefaultParameterSetName = 'ByName')]
     param(
         [Parameter(Mandatory)]
         [string]$GroupName,
@@ -23,19 +23,54 @@ function Remove-LKPolicyExclusion {
             'DeviceConfiguration', 'SettingsCatalog', 'CompliancePolicy', 'EndpointSecurity',
             'AppProtectionIOS', 'AppProtectionAndroid', 'AppProtectionWindows',
             'AppConfiguration', 'EnrollmentConfiguration', 'PolicySet',
-            'GroupPolicyConfiguration', 'PowerShellScript', 'ProactiveRemediation',
+            'GroupPolicyConfiguration', 'PlatformScript', 'Remediation',
             'DriverUpdate', 'MobileApp'
         )]
-        [string[]]$PolicyType
+        [string[]]$PolicyType,
+
+        [Parameter(Mandatory, ParameterSetName = 'ByName')]
+        [string[]]$PolicyName,
+
+        [Parameter(ParameterSetName = 'ByName')]
+        [ValidateSet('Contains', 'Exact', 'Wildcard', 'Regex')]
+        [string]$NameMatch = 'Contains',
+
+        [Parameter(ParameterSetName = 'ByName')]
+        [ValidateSet(
+            'DeviceConfiguration', 'SettingsCatalog', 'CompliancePolicy', 'EndpointSecurity',
+            'AppProtectionIOS', 'AppProtectionAndroid', 'AppProtectionWindows',
+            'AppConfiguration', 'EnrollmentConfiguration', 'PolicySet',
+            'GroupPolicyConfiguration', 'PlatformScript', 'Remediation',
+            'DriverUpdate', 'MobileApp'
+        )]
+        [string[]]$SearchPolicyType
     )
 
     begin {
         Assert-LKSession
         $groupId = Resolve-LKGroupId -GroupName $GroupName
         $bulkConfirmed = $false
+
+        if ($PSCmdlet.ParameterSetName -eq 'ByName') {
+            $lookupParams = @{ Name = $PolicyName; NameMatch = $NameMatch }
+            if ($SearchPolicyType) { $lookupParams['PolicyType'] = $SearchPolicyType }
+            $resolvedPolicies = @(Get-LKPolicy @lookupParams)
+            if ($resolvedPolicies.Count -eq 0) {
+                Write-Warning "No policies found matching '$($PolicyName -join "', '")' with $NameMatch match."
+            }
+        }
     }
 
     process {
+        if ($PSCmdlet.ParameterSetName -eq 'ByName') {
+            foreach ($pol in $resolvedPolicies) {
+                $confirmParam = @{}
+                if ($PSBoundParameters.ContainsKey('Confirm')) { $confirmParam['Confirm'] = $PSBoundParameters['Confirm'] }
+                Remove-LKPolicyExclusion -InputObject $pol -GroupName $GroupName @confirmParam
+            }
+            return
+        }
+
         if ($All) {
             $policies = @(Get-LKPolicy -PolicyType:$PolicyType)
 

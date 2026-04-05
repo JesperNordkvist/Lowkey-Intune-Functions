@@ -32,6 +32,7 @@
         'Get-LKDeviceDetail'
         'Invoke-LKDeviceAction'
         'Show-LKPolicyDetail'
+        'Test-LKPolicyAssignment'
     )
     CmdletsToExport   = @()
     VariablesToExport  = @()
@@ -40,7 +41,7 @@
     PrivateData = @{
         PSData = @{
             Tags       = @('Intune', 'MEM', 'EndpointManager')
-            ProjectUri = ''
+            ProjectUri = 'https://github.com/JesperNordkvist/LKIntuneFunctions'
         }
     }
 }

@@ -39,6 +39,7 @@ The following delegated scopes are requested during `New-LKSession`. An Intune A
 | [Add-LKPolicyExclusion](Functions/Add-LKPolicyExclusion.md) | Add a group as an exclusion to policies |
 | [Remove-LKPolicyExclusion](Functions/Remove-LKPolicyExclusion.md) | Remove a group exclusion from policies |
 | [Copy-LKPolicyAssignment](Functions/Copy-LKPolicyAssignment.md) | Copy assignments from a source policy to targets |
+| [Test-LKPolicyAssignment](Functions/Test-LKPolicyAssignment.md) | Audit policies for scope mismatches (user policy → device group) |
 | [Rename-LKPolicy](Functions/Rename-LKPolicy.md) | Rename an Intune policy |
 
 ## Group Operations
@@ -99,8 +100,8 @@ Used with the `-PolicyType` parameter on `Get-LKPolicy`, `Get-LKGroupAssignment`
 | `EnrollmentConfiguration` | Enrollment Configurations | Both | v1.0 |
 | `PolicySet` | Policy Sets | Both | beta* |
 | `GroupPolicyConfiguration` | Group Policy (ADMX) | Both | beta* |
-| `PowerShellScript` | PowerShell Scripts | Device | beta* |
-| `ProactiveRemediation` | Proactive Remediations | Device | beta* |
+| `PlatformScript` | Platform Scripts | Device | beta* |
+| `Remediation` | Remediations | Device | beta* |
 | `DriverUpdate` | Driver Update Profiles | Device | beta* |
 | `MobileApp` | Mobile Apps | Both | v1.0 |
 

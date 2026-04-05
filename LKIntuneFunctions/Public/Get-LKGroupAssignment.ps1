@@ -34,6 +34,12 @@ function Get-LKGroupAssignment {
     .EXAMPLE
         Get-LKGroupAssignment -Name 'Pilot Devices' -SkipScopeResolution
         Faster scan without dynamic scope resolution (ScopeMismatch will be $null for 'Both' types).
+    .EXAMPLE
+        Get-LKGroupAssignment -Name 'Pilot Devices' -AssignmentType Exclude
+        Shows only policies where the group is excluded.
+    .EXAMPLE
+        Get-LKGroupAssignment -Name 'Pilot Devices' -AssignmentType All
+        Shows both include and exclude assignments for the group.
     #>
     [CmdletBinding(DefaultParameterSetName = 'ByName')]
     param(
@@ -51,12 +57,15 @@ function Get-LKGroupAssignment {
             'DeviceConfiguration', 'SettingsCatalog', 'CompliancePolicy', 'EndpointSecurity',
             'AppProtectionIOS', 'AppProtectionAndroid', 'AppProtectionWindows',
             'AppConfiguration', 'EnrollmentConfiguration', 'PolicySet',
-            'GroupPolicyConfiguration', 'PowerShellScript', 'ProactiveRemediation',
+            'GroupPolicyConfiguration', 'PlatformScript', 'Remediation',
             'DriverUpdate', 'MobileApp'
         )]
         [string[]]$PolicyType,
 
-        [switch]$SkipScopeResolution
+        [switch]$SkipScopeResolution,
+
+        [ValidateSet('Include', 'Exclude', 'All')]
+        [string]$AssignmentType = 'Include'
     )
 
     Assert-LKSession
@@ -133,6 +142,11 @@ function Get-LKGroupAssignment {
 
         foreach ($policy in $policies) {
             $policyName = $policy.($type.NameProperty)
+            $displayType = if ($type.TypeName -eq 'MobileApp' -and $policy.'@odata.type') {
+                Resolve-LKAppDisplayType -ODataType $policy.'@odata.type'
+            } else {
+                $type.DisplayName
+            }
 
             try {
                 $assignments = Get-LKRawAssignment -PolicyId $policy.id -PolicyType $type
@@ -199,8 +213,10 @@ function Get-LKGroupAssignment {
                 $type.TargetScope
             }
 
-            # Emit explicit matches
+            # Emit explicit matches (filtered by -AssignmentType)
             foreach ($match in $explicitMatches) {
+                if ($AssignmentType -ne 'All' -and $match.AssignmentType -ne $AssignmentType) { continue }
+
                 $gScope = $groupScopes[$match.GroupId]
                 $mismatch = if ($policyScope -in @('Device', 'User') -and $gScope -in @('Device', 'User')) {
                     $policyScope -ne $gScope
@@ -211,7 +227,7 @@ function Get-LKGroupAssignment {
                     PolicyId       = $policy.id
                     PolicyName     = $policyName
                     PolicyType     = $type.TypeName
-                    DisplayType    = $type.DisplayName
+                    DisplayType    = $displayType
                     PolicyScope    = $policyScope
                     AssignmentType = $match.AssignmentType
                     GroupId        = $match.GroupId
@@ -222,7 +238,8 @@ function Get-LKGroupAssignment {
             }
 
             # Check broad targets: does "All Devices" / "All Users" implicitly cover any target group?
-            if ($broadTargets.Count -gt 0) {
+            # Broad targets are always include-type, so skip when filtering for Exclude only
+            if ($broadTargets.Count -gt 0 -and $AssignmentType -ne 'Exclude') {
                 foreach ($g in $targetGroups) {
                     $alreadyEmitted = $explicitMatches | Where-Object { $_.GroupId -eq $g.Id }
                     if ($alreadyEmitted) { continue }
@@ -231,16 +248,20 @@ function Get-LKGroupAssignment {
 
                     $gScope = $groupScopes[$g.Id]
 
+                    # Skip broad target matching when group scope is unknown — we can't
+                    # confirm the group would be covered, so avoid false positives
+                    if ($gScope -eq 'Unknown') { continue }
+
                     foreach ($broad in $broadTargets) {
                         $applies = switch ($broad) {
                             'AllDevices' {
-                                $gScope -in @('Device', 'Both', 'Unknown')
+                                $gScope -in @('Device', 'Both')
                             }
                             'AllUsers' {
-                                $gScope -in @('User', 'Both', 'Unknown')
+                                $gScope -in @('User', 'Both')
                             }
                             'AllLicensedUsers' {
-                                $gScope -in @('User', 'Both', 'Unknown')
+                                $gScope -in @('User', 'Both')
                             }
                         }
 
@@ -260,7 +281,7 @@ function Get-LKGroupAssignment {
                                 PolicyId       = $policy.id
                                 PolicyName     = $policyName
                                 PolicyType     = $type.TypeName
-                                DisplayType    = $type.DisplayName
+                                DisplayType    = $displayType
                                 PolicyScope    = $policyScope
                                 AssignmentType = $broad
                                 GroupId        = $g.Id

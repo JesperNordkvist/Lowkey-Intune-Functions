@@ -25,7 +25,7 @@ function Show-LKPolicyDetail {
             'DeviceConfiguration', 'SettingsCatalog', 'CompliancePolicy', 'EndpointSecurity',
             'AppProtectionIOS', 'AppProtectionAndroid', 'AppProtectionWindows',
             'AppConfiguration', 'EnrollmentConfiguration', 'PolicySet',
-            'GroupPolicyConfiguration', 'PowerShellScript', 'ProactiveRemediation',
+            'GroupPolicyConfiguration', 'PlatformScript', 'Remediation',
             'DriverUpdate', 'MobileApp'
         )]
         [string]$PolicyType

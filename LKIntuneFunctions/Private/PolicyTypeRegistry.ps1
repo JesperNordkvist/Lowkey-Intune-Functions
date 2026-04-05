@@ -110,8 +110,8 @@ $script:LKPolicyTypes = @(
         AssignmentMethod = 'Standard'
     }
     @{
-        TypeName         = 'PowerShellScript'
-        DisplayName      = 'PowerShell Script'
+        TypeName         = 'PlatformScript'
+        DisplayName      = 'Platform Script'
         Endpoint         = '/deviceManagement/deviceManagementScripts'
         ApiVersion       = 'beta'
         AssignmentPath   = '/assignments'
@@ -120,8 +120,8 @@ $script:LKPolicyTypes = @(
         AssignmentMethod = 'GroupAssignments'
     }
     @{
-        TypeName         = 'ProactiveRemediation'
-        DisplayName      = 'Proactive Remediation'
+        TypeName         = 'Remediation'
+        DisplayName      = 'Remediation'
         Endpoint         = '/deviceManagement/deviceHealthScripts'
         ApiVersion       = 'beta'
         AssignmentPath   = '/assignments'
