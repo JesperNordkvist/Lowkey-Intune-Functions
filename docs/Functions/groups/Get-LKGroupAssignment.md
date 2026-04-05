@@ -1,0 +1,122 @@
+---
+title: Get-LKGroupAssignment
+parent: Group Operations
+nav_order: 5
+---
+
+# Get-LKGroupAssignment
+Finds all Intune policies where a specific group is assigned --- a reverse lookup across all policy types.
+
+## Syntax
+```powershell
+# By name
+Get-LKGroupAssignment
+    -Name <String[]>
+    [-NameMatch <String>]
+    [-PolicyType <String[]>]
+    [-SkipScopeResolution]
+    [-AssignmentType <String>]
+    [<CommonParameters>]
+
+# By ID
+Get-LKGroupAssignment
+    -GroupId <String>
+    [-PolicyType <String[]>]
+    [-SkipScopeResolution]
+    [-AssignmentType <String>]
+    [<CommonParameters>]
+```
+
+## Description
+Iterates across all policy types and checks each policy's assignments for the specified group(s). Also includes policies assigned to "All Devices" or "All Users" when they would effectively target the group (based on member scope), unless the group is explicitly excluded.
+
+Policy scope is automatically resolved via Graph metadata so that `ScopeMismatch` is accurate. Use `-SkipScopeResolution` for faster results.
+
+## Parameters
+
+### -Name
+| | |
+|---|---|
+| Type | String[] |
+| Required | Yes (ByName) |
+
+### -NameMatch
+| | |
+|---|---|
+| Type | String |
+| Default | Contains |
+| Valid values | Contains, Exact, Wildcard, Regex |
+
+### -GroupId
+| | |
+|---|---|
+| Type | String |
+| Required | Yes (ById) |
+
+### -PolicyType
+Restrict to specific policy types.
+| | |
+|---|---|
+| Type | String[] |
+| Required | No |
+| Valid values | DeviceConfiguration, SettingsCatalog, CompliancePolicy, EndpointSecurity, AppProtectionIOS, AppProtectionAndroid, AppProtectionWindows, AppConfiguration, EnrollmentConfiguration, PolicySet, GroupPolicyConfiguration, PlatformScript, Remediation, DriverUpdate, App |
+
+### -SkipScopeResolution
+Skip dynamic scope resolution for faster results. `ScopeMismatch` will be `$null` for 'Both'-scoped policy types.
+| | |
+|---|---|
+| Type | SwitchParameter |
+
+### -AssignmentType
+Filter by assignment type. Default: `Include`.
+| | |
+|---|---|
+| Type | String |
+| Default | Include |
+| Valid values | Include, Exclude, All |
+
+## Outputs
+| Property | Type | Description |
+|---|---|---|
+| PolicyId | String | Graph object ID |
+| PolicyName | String | Policy display name |
+| PolicyType | String | Normalised type key |
+| DisplayType | String | Human-readable type label |
+| PolicyScope | String | Resolved scope |
+| AssignmentType | String | Include, Exclude, AllDevices, AllUsers, AllLicensedUsers |
+| GroupId | String | Group GUID |
+| GroupName | String | Group display name |
+| GroupScope | String | Group's effective scope |
+| ScopeMismatch | Boolean | True if scopes conflict |
+| Intent | String | required, available, or uninstall (apps only) |
+
+## Examples
+
+### Example 1 --- Basic reverse lookup
+```powershell
+Get-LKGroupAssignment -Name 'XW365-Intune-D-Pilot Devices' -NameMatch Exact
+```
+
+### Example 2 --- Find scope mismatches
+```powershell
+Get-LKGroupAssignment -Name 'Pilot Devices' | Where-Object ScopeMismatch
+```
+
+### Example 3 --- Exclusions only
+```powershell
+Get-LKGroupAssignment -Name 'Pilot Devices' -AssignmentType Exclude
+```
+
+### Example 4 --- Filter by policy type
+```powershell
+Get-LKGroupAssignment -Name 'Pilot' -PolicyType CompliancePolicy, SettingsCatalog
+```
+
+### Example 5 --- App assignments with intent
+```powershell
+Get-LKGroupAssignment -Name 'All Users' -PolicyType App | Format-Table PolicyName, Intent
+```
+
+## Related
+- [Get-LKGroup](Get-LKGroup.md)
+- [Get-LKPolicyAssignment](../policies/Get-LKPolicyAssignment.md)

@@ -1,0 +1,39 @@
+title: LKIntuneFunctions
+description: PowerShell module for Intune management via Microsoft Graph API
+remote_theme: just-the-docs/just-the-docs@v0.10.0
+
+url: https://jespernordkvist.github.io
+baseurl: /Lowkey-Intune-Functions
+
+permalink: pretty
+
+aux_links:
+  "GitHub":
+    - "https://github.com/JesperNordkvist/Lowkey-Intune-Functions"
+
+nav_sort: case_insensitive
+
+heading_anchors: true
+
+search_enabled: true
+search.rel_url: true
+search.tokenizer_separator: /[\s/]+/
+
+color_scheme: dark
+
+back_to_top: true
+back_to_top_text: "Back to top"
+
+callouts:
+  warning:
+    title: Warning
+    color: yellow
+  note:
+    title: Note
+    color: blue
+  tip:
+    title: Tip
+    color: green
+  important:
+    title: Important
+    color: red
