@@ -1,0 +1,131 @@
+function Add-LKPolicyExclusion {
+    <#
+    .SYNOPSIS
+        Adds a group as an exclusion to one or more Intune policies.
+    .DESCRIPTION
+        For each target policy: fetches current assignments, appends an exclusion entry,
+        and writes back the complete set (replace-all pattern). Skips policies that
+        already exclude the group. Always confirms before modifying.
+    .EXAMPLE
+        Add-LKPolicyExclusion -GroupName 'SG-Intune-TestDevices' -All
+    .EXAMPLE
+        Add-LKPolicyExclusion -GroupName 'SG-Intune-TestDevices' -All -PolicyType CompliancePolicy
+    .EXAMPLE
+        Get-LKPolicy -Name "XW365" | Add-LKPolicyExclusion -GroupName 'TestGroup'
+    .EXAMPLE
+        Add-LKPolicyExclusion -GroupName 'TestGroup' -All -WhatIf
+    #>
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High', DefaultParameterSetName = 'ByPipeline')]
+    param(
+        [Parameter(Mandatory)]
+        [string]$GroupName,
+
+        [Parameter(ValueFromPipeline, ParameterSetName = 'ByPipeline')]
+        [PSCustomObject]$InputObject,
+
+        [Parameter(Mandatory, ParameterSetName = 'All')]
+        [switch]$All,
+
+        [Parameter(ParameterSetName = 'All')]
+        [ValidateSet(
+            'DeviceConfiguration', 'SettingsCatalog', 'CompliancePolicy', 'EndpointSecurity',
+            'AppProtectionIOS', 'AppProtectionAndroid', 'AppProtectionWindows',
+            'AppConfiguration', 'EnrollmentConfiguration', 'PolicySet',
+            'GroupPolicyConfiguration', 'PowerShellScript', 'ProactiveRemediation',
+            'DriverUpdate', 'MobileApp'
+        )]
+        [string[]]$PolicyType
+    )
+
+    begin {
+        Assert-LKSession
+        $groupId = Resolve-LKGroupId -GroupName $GroupName
+        $groupScope = Resolve-LKGroupScope -GroupId $groupId
+        $bulkConfirmed = $false
+    }
+
+    process {
+        if ($All) {
+            $policies = @(Get-LKPolicy -PolicyType:$PolicyType)
+
+            $typeList = ($policies | Select-Object -ExpandProperty DisplayType -Unique) -join ', '
+            Write-LKActionSummary -Action 'ADD EXCLUSION TO ALL POLICIES' -Details ([ordered]@{
+                Group    = "$GroupName (Exclude)"
+                Policies = "$($policies.Count) policies found"
+                Types    = $typeList
+            })
+
+            if (-not $PSCmdlet.ShouldProcess("$($policies.Count) policies", "Add exclusion for '$GroupName' to ALL")) {
+                return
+            }
+            $bulkConfirmed = $true
+        } elseif ($InputObject) {
+            $policies = @($InputObject)
+        } else {
+            return
+        }
+
+        foreach ($policy in $policies) {
+            $typeEntry = $script:LKPolicyTypes | Where-Object { $_.TypeName -eq $policy.PolicyType }
+            if (-not $typeEntry) { continue }
+
+            if ($typeEntry.AssignmentMethod -eq 'GroupAssignments') {
+                Write-Verbose "Skipping '$($policy.Name)' - policy type does not support exclusions."
+                continue
+            }
+
+            $assignments = Get-LKRawAssignment -PolicyId $policy.Id -PolicyType $typeEntry
+
+            $alreadyExcluded = $assignments | Where-Object {
+                $_.target.'@odata.type' -like '*exclusionGroupAssignmentTarget' -and
+                $_.target.groupId -eq $groupId
+            }
+            if ($alreadyExcluded) {
+                Write-Verbose "Skipping '$($policy.Name)' - group already excluded."
+                continue
+            }
+
+            # Scope mismatch check - skip if scopes are incompatible
+            $policyScope = if ($policy.TargetScope) { $policy.TargetScope } else { $typeEntry.TargetScope }
+            if ($groupScope -ne 'Unknown' -and $policyScope -ne 'Both' -and $groupScope -ne $policyScope) {
+                Write-Warning "Skipping '$($policy.Name)': group '$GroupName' is a $groupScope group, but policy is $policyScope-scoped."
+                continue
+            }
+
+            $shouldProceed = $bulkConfirmed
+            if (-not $shouldProceed) {
+                Write-LKActionSummary -Action 'ADD EXCLUSION' -Details ([ordered]@{
+                    Policy = "$($policy.Name) ($($typeEntry.DisplayName))"
+                    Group  = "$GroupName (Exclude)"
+                    Scope  = "Policy=$policyScope, Group=$groupScope"
+                })
+                $shouldProceed = $PSCmdlet.ShouldProcess("$($policy.Name) ($($typeEntry.DisplayName))", "Add exclusion for '$GroupName'")
+            }
+
+            if ($shouldProceed) {
+                $newExclusion = @{
+                    target = @{
+                        '@odata.type' = '#microsoft.graph.exclusionGroupAssignmentTarget'
+                        groupId       = $groupId
+                    }
+                }
+
+                $updatedAssignments = @($assignments) + @($newExclusion)
+
+                try {
+                    Set-LKRawAssignment -PolicyId $policy.Id -PolicyType $typeEntry -Assignments $updatedAssignments
+                    [PSCustomObject]@{
+                        PolicyName = $policy.Name
+                        PolicyType = $typeEntry.TypeName
+                        Action     = 'ExclusionAdded'
+                        GroupName  = $GroupName
+                        GroupId    = $groupId
+                    }
+                } catch {
+                    $err = $_.Exception.Message
+                    Write-Warning "Failed to add exclusion to '$($policy.Name)': $err"
+                }
+            }
+        }
+    }
+}
