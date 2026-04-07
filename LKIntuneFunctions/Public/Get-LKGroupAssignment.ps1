@@ -68,7 +68,7 @@ function Get-LKGroupAssignment {
         [switch]$SkipScopeResolution,
 
         [ValidateSet('Include', 'Exclude', 'All')]
-        [string]$AssignmentType = 'Include',
+        [string]$AssignmentType = 'All',
 
         [ValidateSet('List', 'Table')]
         [string]$DisplayAs = 'List'
@@ -203,9 +203,9 @@ function Get-LKGroupAssignment {
 
                 # Broad targets (All Devices, All Users, All Licensed Users)
                 $broadType = switch -Wildcard ($odataType) {
-                    '*allDevicesAssignmentTarget'       { 'AllDevices' }
-                    '*allUsersAssignmentTarget'         { 'AllUsers' }
-                    '*allLicensedUsersAssignmentTarget' { 'AllLicensedUsers' }
+                    '*allDevicesAssignmentTarget'       { 'AllDevices'; break }
+                    '*allUsersAssignmentTarget'         { 'AllUsers'; break }
+                    '*allLicensedUsersAssignmentTarget' { 'AllLicensedUsers'; break }
                     default                             { $null }
                 }
                 if ($broadType) {
@@ -249,60 +249,44 @@ function Get-LKGroupAssignment {
                 if ($DisplayAs -eq 'Table') { $collector.Add($obj) } else { $obj }
             }
 
-            # Check broad targets: does "All Devices" / "All Users" implicitly cover any target group?
-            # Broad targets are always include-type, so skip when filtering for Exclude only
+            # Emit broad targets: show all AllDevices/AllUsers/AllLicensedUsers assignments
+            # so the user sees the full picture of what hits this group.
             if ($broadTargets.Count -gt 0 -and $AssignmentType -ne 'Exclude') {
                 foreach ($g in $targetGroups) {
-                    $alreadyEmitted = $explicitMatches | Where-Object { $_.GroupId -eq $g.Id }
-                    if ($alreadyEmitted) { continue }
+                    # Skip if group already has an explicit match for this policy
+                    $alreadyExplicit = $explicitMatches | Where-Object { $_.GroupId -eq $g.Id }
+                    if ($alreadyExplicit) { continue }
 
+                    # Skip if group is explicitly excluded from this policy
                     if ($g.Id -in $excludedGroupIds) { continue }
 
                     $gScope = $groupScopes[$g.Id]
 
-                    # Skip broad target matching when group scope is unknown
-                    if ($gScope -eq 'Unknown') { continue }
-
                     foreach ($broad in $broadTargets) {
-                        $applies = switch ($broad.Type) {
-                            'AllDevices' {
-                                $gScope -in @('Device', 'Both')
-                            }
-                            'AllUsers' {
-                                $gScope -in @('User', 'Both')
-                            }
-                            'AllLicensedUsers' {
-                                $gScope -in @('User', 'Both')
-                            }
+                        $broadImpliedScope = switch ($broad.Type) {
+                            'AllDevices'       { 'Device'; break }
+                            'AllUsers'         { 'User'; break }
+                            'AllLicensedUsers' { 'User'; break }
                         }
+                        $mismatch = if ($policyScope -in @('Device', 'User') -and $broadImpliedScope) {
+                            $policyScope -ne $broadImpliedScope
+                        } else { $null }
 
-                        if ($applies) {
-                            $broadImpliedScope = switch ($broad.Type) {
-                                'AllDevices'       { 'Device' }
-                                'AllUsers'         { 'User' }
-                                'AllLicensedUsers' { 'User' }
-                            }
-                            $mismatch = if ($policyScope -in @('Device', 'User') -and $broadImpliedScope) {
-                                $policyScope -ne $broadImpliedScope
-                            } else { $null }
-
-                            $obj = [PSCustomObject]@{
-                                PSTypeName     = 'LKGroupAssignment'
-                                PolicyId       = $policy.id
-                                PolicyName     = $policyName
-                                PolicyType     = $type.TypeName
-                                DisplayType    = $displayType
-                                PolicyScope    = $policyScope
-                                AssignmentType = $broad.Type
-                                GroupId        = $g.Id
-                                GroupName      = $targetLookup[$g.Id]
-                                GroupScope     = $gScope
-                                ScopeMismatch  = $mismatch
-                                Intent         = $broad.Intent
-                            }
-                            if ($DisplayAs -eq 'Table') { $collector.Add($obj) } else { $obj }
-                            break
+                        $obj = [PSCustomObject]@{
+                            PSTypeName     = 'LKGroupAssignment'
+                            PolicyId       = $policy.id
+                            PolicyName     = $policyName
+                            PolicyType     = $type.TypeName
+                            DisplayType    = $displayType
+                            PolicyScope    = $policyScope
+                            AssignmentType = $broad.Type
+                            GroupId        = $g.Id
+                            GroupName      = $targetLookup[$g.Id]
+                            GroupScope     = $gScope
+                            ScopeMismatch  = $mismatch
+                            Intent         = $broad.Intent
                         }
+                        if ($DisplayAs -eq 'Table') { $collector.Add($obj) } else { $obj }
                     }
                 }
             }
