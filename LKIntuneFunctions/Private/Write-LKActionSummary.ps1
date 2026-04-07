@@ -12,19 +12,19 @@ function Write-LKActionSummary {
     )
 
     Write-Host ''
-    Write-Host "  [$Action]" -ForegroundColor Yellow
+    Write-Host "  [$Action]" -ForegroundColor Cyan
     foreach ($key in $Details.Keys) {
         $value = $Details[$key]
         if ($value) {
-            Write-Host "  ${key}:  " -ForegroundColor Gray -NoNewline
+            Write-Host "  $($key.PadRight(10))" -ForegroundColor Gray -NoNewline
             Write-Host "$value" -ForegroundColor White
         }
     }
 
     # Show tenant context from session
     if ($script:LKSession.Connected) {
-        Write-Host "  Tenant:  " -ForegroundColor Gray -NoNewline
-        Write-Host "$($script:LKSession.TenantName) ($($script:LKSession.Account))" -ForegroundColor Cyan
+        Write-Host "  $('Tenant'.PadRight(10))" -ForegroundColor Gray -NoNewline
+        Write-Host "$($script:LKSession.TenantName) ($($script:LKSession.Account))" -ForegroundColor DarkGray
     }
     Write-Host ''
 }

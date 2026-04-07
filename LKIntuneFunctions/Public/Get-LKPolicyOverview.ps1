@@ -7,7 +7,7 @@ function Get-LKPolicyOverview {
         color-coded summary with one line per assignment, grouped by policy.
 
         Policies with no assignments are shown in dark gray.
-        Excludes are highlighted in magenta, broad targets in cyan.
+        Excludes are highlighted in magenta, broad targets in dark yellow.
     .EXAMPLE
         Get-LKPolicyOverview
         Shows all policies and their assignments.
@@ -58,7 +58,7 @@ function Get-LKPolicyOverview {
     $groupNameCache = @{}
 
     # Collect all data first, then render
-    $policyData = [System.Collections.ArrayList]::new()
+    $policyData = [System.Collections.Generic.List[object]]::new()
 
     foreach ($pol in $policies) {
         $currentPolicy++
@@ -118,24 +118,26 @@ function Get-LKPolicyOverview {
             Name        = $pol.Name
             DisplayType = $pol.DisplayType
             Assignments = $assignments
-        }) | Out-Null
+        })
     }
 
     Write-Progress -Activity 'Building policy overview' -Completed
 
     # Render
-    $separator = '=' * 80
+    $separator = [string]([char]0x2500) * 78
     Write-Host ''
     Write-Host $separator -ForegroundColor DarkGray
-    Write-Host "  POLICY OVERVIEW" -ForegroundColor White
+    Write-Host "  POLICY OVERVIEW" -ForegroundColor Cyan
     Write-Host $separator -ForegroundColor DarkGray
 
     $totalAssigned   = @($policyData | Where-Object { $_.Assignments.Count -gt 0 }).Count
     $totalUnassigned = @($policyData | Where-Object { $_.Assignments.Count -eq 0 }).Count
     Write-Host ''
-    Write-Host "  Policies: $($policyData.Count) total, " -ForegroundColor Gray -NoNewline
+    Write-Host "  Policies: " -ForegroundColor Gray -NoNewline
+    Write-Host "$($policyData.Count) total" -ForegroundColor White -NoNewline
+    Write-Host "  |  " -ForegroundColor DarkGray -NoNewline
     Write-Host "$totalAssigned assigned" -ForegroundColor Green -NoNewline
-    Write-Host ", " -ForegroundColor Gray -NoNewline
+    Write-Host "  |  " -ForegroundColor DarkGray -NoNewline
     Write-Host "$totalUnassigned unassigned" -ForegroundColor $(if ($totalUnassigned -eq 0) { 'Green' } else { 'Yellow' })
     Write-Host ''
 
@@ -145,38 +147,66 @@ function Get-LKPolicyOverview {
         $policyData
     }
 
-    foreach ($pol in $filteredData) {
-        $typeLabel = $pol.DisplayType
-        Write-Host "  $($pol.Name)" -ForegroundColor White -NoNewline
-        Write-Host "  ($typeLabel)" -ForegroundColor DarkGray
+    # Group policies by type for better visual separation
+    $grouped = $filteredData | Group-Object { $_.DisplayType }
 
-        if ($pol.Assignments.Count -eq 0) {
-            Write-Host "    (no assignments)" -ForegroundColor DarkGray
-        } else {
-            foreach ($a in $pol.Assignments) {
-                $label = if ($a.GroupName) { "$($a.Type): $($a.GroupName)" } else { $a.Type }
-                $color = switch ($a.Type) {
-                    'Exclude'          { 'Magenta' }
-                    'AllDevices'       { 'Cyan' }
-                    'AllUsers'         { 'Cyan' }
-                    'AllLicensedUsers' { 'Cyan' }
-                    'Include'          { 'Gray' }
-                    default            { 'DarkGray' }
-                }
-                # Append intent label for app assignments (Required/Available/Uninstall)
-                if ($a.Intent) {
-                    $intentLabel = switch ($a.Intent) {
-                        'required'  { 'Required' }
-                        'available' { 'Available' }
-                        'uninstall' { 'Uninstall' }
-                        default     { $a.Intent }
+    foreach ($typeGroup in $grouped) {
+        Write-Host "  $($typeGroup.Name)" -ForegroundColor Cyan
+        $thinLine = [string]([char]0x2500) * 78
+        Write-Host "  $thinLine" -ForegroundColor DarkGray
+
+        foreach ($pol in $typeGroup.Group) {
+            Write-Host "    $($pol.Name)" -ForegroundColor White
+
+            if ($pol.Assignments.Count -eq 0) {
+                Write-Host "      (no assignments)" -ForegroundColor DarkGray
+            } else {
+                foreach ($a in $pol.Assignments) {
+                    $color = switch ($a.Type) {
+                        'Exclude'          { 'Magenta' }
+                        'AllDevices'       { 'DarkYellow' }
+                        'AllUsers'         { 'DarkYellow' }
+                        'AllLicensedUsers' { 'DarkYellow' }
+                        'Include'          { 'Green' }
+                        default            { 'DarkGray' }
                     }
-                    $label = "$label ($intentLabel)"
+
+                    $typeTag = switch ($a.Type) {
+                        'Include'          { '+' }
+                        'Exclude'          { '-' }
+                        'AllDevices'       { '*' }
+                        'AllUsers'         { '*' }
+                        'AllLicensedUsers' { '*' }
+                        default            { '?' }
+                    }
+
+                    $label = if ($a.GroupName) { $a.GroupName } else { $a.Type }
+                    $broadLabel = switch ($a.Type) {
+                        'AllDevices'       { 'All Devices' }
+                        'AllUsers'         { 'All Users' }
+                        'AllLicensedUsers' { 'All Licensed Users' }
+                        default            { $null }
+                    }
+                    if ($broadLabel) { $label = $broadLabel }
+
+                    Write-Host "      $typeTag " -ForegroundColor $color -NoNewline
+                    Write-Host "$label" -ForegroundColor $color -NoNewline
+
+                    # Append intent label for app assignments
+                    if ($a.Intent) {
+                        $intentLabel = switch ($a.Intent) {
+                            'required'  { 'Required' }
+                            'available' { 'Available' }
+                            'uninstall' { 'Uninstall' }
+                            default     { $a.Intent }
+                        }
+                        Write-Host " ($intentLabel)" -ForegroundColor DarkGray -NoNewline
+                    }
+                    Write-Host ''
                 }
-                Write-Host "    $label" -ForegroundColor $color
             }
+            Write-Host ''
         }
-        Write-Host ''
     }
 
     Write-Host $separator -ForegroundColor DarkGray

@@ -119,7 +119,6 @@ function Show-LKPolicyDetail {
                         $gName = $grp.displayName
                     } catch { }
                 }
-                # Capture intent (Required/Available/Uninstall) for app assignments
                 $intent = $a.intent
                 $assignments += @{ Type = $aType; Target = $gName; Intent = $intent }
             }
@@ -127,12 +126,13 @@ function Show-LKPolicyDetail {
             Write-Verbose "Failed to fetch assignments: $($_.Exception.Message)"
         }
 
-        # ── Render ──
-        $separator = '─' * 70
+        # Render
+        $separator = [string]([char]0x2500) * 70
         Write-Host ''
         Write-Host $separator -ForegroundColor DarkGray
         Write-Host "  $name" -ForegroundColor White
         Write-Host $separator -ForegroundColor DarkGray
+        Write-Host ''
 
         # Header info
         $headerItems = [ordered]@{
@@ -141,30 +141,47 @@ function Show-LKPolicyDetail {
             'Created'  = $created
             'Modified' = $modified
         }
-        if ($desc) { $headerItems['Description'] = $desc }
+        if ($desc) { $headerItems['Desc'] = $desc }
         $headerItems['Id'] = $id
 
         foreach ($key in $headerItems.Keys) {
             $value = $headerItems[$key]
             if ($value) {
-                Write-Host "  $($key.PadRight(12))" -ForegroundColor Gray -NoNewline
-                Write-Host "$value" -ForegroundColor Cyan
+                $valueColor = switch ($key) {
+                    'Id'    { 'DarkGray' }
+                    'Scope' {
+                        switch ($value) {
+                            'Device' { 'Cyan' }
+                            'User'   { 'DarkYellow' }
+                            default  { 'White' }
+                        }
+                    }
+                    default { 'White' }
+                }
+                Write-Host "  $($key.PadRight(10))" -ForegroundColor Gray -NoNewline
+                Write-Host "$value" -ForegroundColor $valueColor
             }
         }
 
         # Assignments section
         Write-Host ''
-        Write-Host '  ASSIGNMENTS' -ForegroundColor Yellow
+        Write-Host '  ASSIGNMENTS' -ForegroundColor Cyan
         if ($assignments.Count -eq 0) {
             Write-Host '    (none)' -ForegroundColor DarkGray
         } else {
             foreach ($a in $assignments) {
                 $color = switch ($a.Type) {
                     'Include' { 'Green' }
-                    'Exclude' { 'Red' }
-                    default   { 'White' }
+                    'Exclude' { 'Magenta' }
+                    default   { 'DarkYellow' }
                 }
-                Write-Host "    [$($a.Type)]" -ForegroundColor $color -NoNewline
+                $tag = switch ($a.Type) {
+                    'Include' { '+' }
+                    'Exclude' { '-' }
+                    default   { '*' }
+                }
+                Write-Host "    $tag " -ForegroundColor $color -NoNewline
+                Write-Host "[$($a.Type)]" -ForegroundColor $color -NoNewline
                 Write-Host " $($a.Target)" -ForegroundColor White -NoNewline
                 if ($a.Intent) {
                     $intentLabel = switch ($a.Intent) {
@@ -173,7 +190,7 @@ function Show-LKPolicyDetail {
                         'uninstall'     { 'Uninstall' }
                         default         { $a.Intent }
                     }
-                    Write-Host " ($intentLabel)" -ForegroundColor DarkYellow
+                    Write-Host " ($intentLabel)" -ForegroundColor DarkGray
                 } else {
                     Write-Host ''
                 }
@@ -182,14 +199,14 @@ function Show-LKPolicyDetail {
 
         # Settings section
         Write-Host ''
-        Write-Host '  SETTINGS' -ForegroundColor Yellow
+        Write-Host '  SETTINGS' -ForegroundColor Cyan
         if (-not $settings -or $settings.Count -eq 0) {
             Write-Host '    (no settings found or policy type does not expose individual settings)' -ForegroundColor DarkGray
         } else {
             # Group by category
             $grouped = $settings | Group-Object { $_.Category }
             $maxNameLen = ($settings | ForEach-Object { $_.Name.Length } | Measure-Object -Maximum).Maximum
-            $maxNameLen = [Math]::Min($maxNameLen, 65)
+            $maxNameLen = [Math]::Min($maxNameLen, 55)
 
             foreach ($group in $grouped) {
                 if ($grouped.Count -gt 1) {
@@ -199,17 +216,17 @@ function Show-LKPolicyDetail {
 
                 foreach ($s in $group.Group) {
                     $settingName = $s.Name
-                    if ($settingName.Length -gt 65) {
-                        $settingName = $settingName.Substring(0, 62) + '...'
+                    if ($settingName.Length -gt 55) {
+                        $settingName = $settingName.Substring(0, 52) + '...'
                     }
                     $paddedName = $settingName.PadRight($maxNameLen)
 
                     $displayValue = if ($null -eq $s.Value -or "$($s.Value)" -eq '') {
                         '(not set)'
                     } elseif ("$($s.Value)" -eq 'True') {
-                        'Yes'
+                        'Enabled'
                     } elseif ("$($s.Value)" -eq 'False') {
-                        'No'
+                        'Disabled'
                     } else {
                         "$($s.Value)".TrimEnd('.')
                     }
@@ -219,8 +236,15 @@ function Show-LKPolicyDetail {
                         $displayValue = $displayValue.Substring(0, 77) + '...'
                     }
 
+                    $valueColor = switch ($displayValue) {
+                        'Enabled'   { 'Green' }
+                        'Disabled'  { 'DarkGray' }
+                        '(not set)' { 'DarkGray' }
+                        default     { 'White' }
+                    }
+
                     Write-Host "    $paddedName  " -ForegroundColor Gray -NoNewline
-                    Write-Host $displayValue -ForegroundColor White
+                    Write-Host $displayValue -ForegroundColor $valueColor
                 }
             }
         }

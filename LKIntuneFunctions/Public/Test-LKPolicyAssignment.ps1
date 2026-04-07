@@ -55,7 +55,7 @@ function Test-LKPolicyAssignment {
     $groupScopeCache = @{}     # GroupId -> @{ Scope; DeviceCount; UserCount }
     $groupNameCache = @{}      # GroupId -> DisplayName
 
-    $issues = [System.Collections.ArrayList]::new()
+    $issues = [System.Collections.Generic.List[object]]::new()
 
     $totalTypes = $types.Count
     $currentType = 0
@@ -136,19 +136,19 @@ function Test-LKPolicyAssignment {
                             PolicyTypeId = $type.TypeName
                             PolicyScope  = $policyScope
                             AssignmentType = 'AllDevices'
-                            GroupName    = '** All Devices **'
+                            GroupName    = 'All Devices'
                             GroupScope   = 'Device'
                             DeviceCount  = $null
                             UserCount    = $null
                             Severity     = 'Mismatch'
                             Detail       = "User-scoped policy is assigned to All Devices"
-                        }) | Out-Null
+                        })
                     }
                     continue
                 }
 
                 if ($targetType -like '*allUsersAssignmentTarget*' -or $targetType -like '*allLicensedUsersAssignmentTarget*') {
-                    $broadLabel = if ($targetType -like '*allLicensedUsers*') { '** All Licensed Users **' } else { '** All Users **' }
+                    $broadLabel = if ($targetType -like '*allLicensedUsers*') { 'All Licensed Users' } else { 'All Users' }
                     if ($policyScope -eq 'Device' -and $type.TypeName -ne 'EnrollmentConfiguration') {
                         $issues.Add([PSCustomObject]@{
                             PSTypeName   = 'LKPolicyAssignmentIssue'
@@ -164,7 +164,7 @@ function Test-LKPolicyAssignment {
                             UserCount    = $null
                             Severity     = 'Mismatch'
                             Detail       = "Device-scoped policy is assigned to $broadLabel"
-                        }) | Out-Null
+                        })
                     }
                     continue
                 }
@@ -230,7 +230,7 @@ function Test-LKPolicyAssignment {
                         UserCount    = $gScope.UserCount
                         Severity     = $severity
                         Detail       = $detail
-                    }) | Out-Null
+                    })
                 }
             }
         }
@@ -239,70 +239,95 @@ function Test-LKPolicyAssignment {
     Write-Progress -Activity 'Auditing policy assignments' -Completed
 
     if ($Detailed) {
-        Write-Host ''
-        $separator = '=' * 70
-        Write-Host $separator -ForegroundColor DarkGray
-        Write-Host "  POLICY ASSIGNMENT AUDIT" -ForegroundColor White
-        Write-Host $separator -ForegroundColor DarkGray
+        $separator = [string]([char]0x2500) * 70
+        $thinLine  = [string]([char]0x2500) * 68
 
         $mismatches = @($issues | Where-Object { $_.Severity -eq 'Mismatch' })
         $warnings = @($issues | Where-Object { $_.Severity -eq 'Warning' })
         $infos = @($issues | Where-Object { $_.Severity -eq 'Info' })
 
         Write-Host ''
-        Write-Host "  Total issues found: $($mismatches.Count + $warnings.Count)" -ForegroundColor $(if (($mismatches.Count + $warnings.Count) -eq 0) { 'Green' } else { 'Yellow' })
-        Write-Host "    Mismatches:  $($mismatches.Count)" -ForegroundColor $(if ($mismatches.Count -eq 0) { 'Green' } else { 'Red' })
-        Write-Host "    Warnings:    $($warnings.Count)" -ForegroundColor $(if ($warnings.Count -eq 0) { 'Green' } else { 'Yellow' })
-        Write-Host "    Unresolved:  $($infos.Count)" -ForegroundColor $(if ($infos.Count -eq 0) { 'Green' } else { 'DarkGray' })
+        Write-Host $separator -ForegroundColor DarkGray
+        Write-Host "  POLICY ASSIGNMENT AUDIT" -ForegroundColor Cyan
+        Write-Host $separator -ForegroundColor DarkGray
+        Write-Host ''
+
+        # Summary counts
+        Write-Host "  Results:  " -ForegroundColor Gray -NoNewline
+        Write-Host "$($mismatches.Count) mismatches" -ForegroundColor $(if ($mismatches.Count -eq 0) { 'Green' } else { 'Red' }) -NoNewline
+        Write-Host "  |  " -ForegroundColor DarkGray -NoNewline
+        Write-Host "$($warnings.Count) warnings" -ForegroundColor $(if ($warnings.Count -eq 0) { 'Green' } else { 'Yellow' }) -NoNewline
+        Write-Host "  |  " -ForegroundColor DarkGray -NoNewline
+        Write-Host "$($infos.Count) unresolved" -ForegroundColor $(if ($infos.Count -eq 0) { 'Green' } else { 'DarkGray' })
         Write-Host ''
 
         if ($mismatches.Count -gt 0) {
-            Write-Host "  MISMATCHES (wrong scope — policy will not apply correctly)" -ForegroundColor Red
-            Write-Host ('  ' + ('-' * 66)) -ForegroundColor DarkGray
+            Write-Host "  MISMATCHES" -ForegroundColor Red -NoNewline
+            Write-Host "  Wrong scope - policy will not apply correctly" -ForegroundColor DarkGray
+            Write-Host "  $thinLine" -ForegroundColor DarkGray
+
             foreach ($m in $mismatches) {
-                Write-Host "    $($m.PolicyName)" -ForegroundColor White
-                Write-Host "      Type:    $($m.PolicyType)" -ForegroundColor Gray
-                Write-Host "      Policy:  " -ForegroundColor Gray -NoNewline
-                Write-Host "$($m.PolicyScope)-scoped" -ForegroundColor Cyan
-                Write-Host "      Assign:  " -ForegroundColor Gray -NoNewline
-                Write-Host "$($m.AssignmentType)" -ForegroundColor $(if ($m.AssignmentType -eq 'Exclude') { 'Magenta' } else { 'White' })
-                Write-Host "      Group:   " -ForegroundColor Gray -NoNewline
-                Write-Host "$($m.GroupName)" -ForegroundColor Yellow -NoNewline
-                Write-Host " ($($m.GroupScope))" -ForegroundColor Red
-                Write-Host "      Detail:  $($m.Detail)" -ForegroundColor DarkGray
                 Write-Host ''
+                Write-Host "    $($m.PolicyName)" -ForegroundColor White
+                Write-Host "    Type       " -ForegroundColor DarkGray -NoNewline
+                Write-Host "$($m.PolicyType)" -ForegroundColor Gray
+                Write-Host "    Scope      " -ForegroundColor DarkGray -NoNewline
+                $scopeColor = switch ($m.PolicyScope) { 'Device' { 'Cyan' }; 'User' { 'DarkYellow' }; default { 'White' } }
+                Write-Host "$($m.PolicyScope)-scoped" -ForegroundColor $scopeColor -NoNewline
+                Write-Host "  >  " -ForegroundColor DarkGray -NoNewline
+                $gScopeColor = switch ($m.GroupScope) { 'Device' { 'Cyan' }; 'User' { 'DarkYellow' }; default { 'White' } }
+                Write-Host "$($m.GroupScope) group" -ForegroundColor $gScopeColor
+                Write-Host "    Group      " -ForegroundColor DarkGray -NoNewline
+                Write-Host "$($m.GroupName)" -ForegroundColor White -NoNewline
+                if ($m.AssignmentType -eq 'Exclude') {
+                    Write-Host " (Exclude)" -ForegroundColor Magenta
+                } else {
+                    Write-Host ''
+                }
+                Write-Host "    Detail     " -ForegroundColor DarkGray -NoNewline
+                Write-Host "$($m.Detail)" -ForegroundColor DarkGray
             }
+            Write-Host ''
         }
 
         if ($warnings.Count -gt 0) {
-            Write-Host "  WARNINGS (mixed-scope groups — may partially apply)" -ForegroundColor Yellow
-            Write-Host ('  ' + ('-' * 66)) -ForegroundColor DarkGray
+            Write-Host "  WARNINGS" -ForegroundColor Yellow -NoNewline
+            Write-Host "  Mixed-scope groups - may partially apply" -ForegroundColor DarkGray
+            Write-Host "  $thinLine" -ForegroundColor DarkGray
+
             foreach ($w in $warnings) {
-                Write-Host "    $($w.PolicyName)" -ForegroundColor White
-                Write-Host "      Type:    $($w.PolicyType)" -ForegroundColor Gray
-                Write-Host "      Policy:  " -ForegroundColor Gray -NoNewline
-                Write-Host "$($w.PolicyScope)-scoped" -ForegroundColor Cyan
-                Write-Host "      Assign:  " -ForegroundColor Gray -NoNewline
-                Write-Host "$($w.AssignmentType)" -ForegroundColor $(if ($w.AssignmentType -eq 'Exclude') { 'Magenta' } else { 'White' })
-                Write-Host "      Group:   " -ForegroundColor Gray -NoNewline
-                Write-Host "$($w.GroupName)" -ForegroundColor Yellow -NoNewline
-                Write-Host " ($($w.GroupScope) — $($w.DeviceCount) devices, $($w.UserCount) users)" -ForegroundColor DarkYellow
                 Write-Host ''
+                Write-Host "    $($w.PolicyName)" -ForegroundColor White
+                Write-Host "    Type       " -ForegroundColor DarkGray -NoNewline
+                Write-Host "$($w.PolicyType)" -ForegroundColor Gray
+                Write-Host "    Scope      " -ForegroundColor DarkGray -NoNewline
+                $scopeColor = switch ($w.PolicyScope) { 'Device' { 'Cyan' }; 'User' { 'DarkYellow' }; default { 'White' } }
+                Write-Host "$($w.PolicyScope)-scoped" -ForegroundColor $scopeColor
+                Write-Host "    Group      " -ForegroundColor DarkGray -NoNewline
+                Write-Host "$($w.GroupName)" -ForegroundColor White -NoNewline
+                Write-Host " ($($w.GroupScope) - $($w.DeviceCount) devices, $($w.UserCount) users)" -ForegroundColor DarkGray
+                if ($w.AssignmentType -eq 'Exclude') {
+                    Write-Host "    Assign     " -ForegroundColor DarkGray -NoNewline
+                    Write-Host "Exclude" -ForegroundColor Magenta
+                }
             }
+            Write-Host ''
         }
 
         if ($infos.Count -gt 0) {
-            Write-Host "  UNRESOLVED (empty or unresolvable groups — review manually)" -ForegroundColor DarkGray
-            Write-Host ('  ' + ('-' * 66)) -ForegroundColor DarkGray
-            # Group by group name to avoid repetition
+            Write-Host "  UNRESOLVED" -ForegroundColor DarkGray -NoNewline
+            Write-Host "  Empty or unresolvable groups - review manually" -ForegroundColor DarkGray
+            Write-Host "  $thinLine" -ForegroundColor DarkGray
+            Write-Host ''
+
             $infoByGroup = $infos | Group-Object GroupName
             foreach ($g in $infoByGroup) {
                 $policyList = ($g.Group | ForEach-Object { $_.PolicyName }) -join ', '
                 Write-Host "    $($g.Name)" -ForegroundColor Gray -NoNewline
-                Write-Host " — $($g.Count) policies" -ForegroundColor DarkGray
-                Write-Host "      Policies: $policyList" -ForegroundColor DarkGray
-                Write-Host ''
+                Write-Host " - $($g.Count) policies" -ForegroundColor DarkGray
+                Write-Host "      $policyList" -ForegroundColor DarkGray
             }
+            Write-Host ''
         }
 
         if (($mismatches.Count + $warnings.Count + $infos.Count) -eq 0) {
