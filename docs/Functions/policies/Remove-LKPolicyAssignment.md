@@ -92,6 +92,22 @@ Optional - auto-resolved if omitted.
 |---|---|
 | Type | `String` |
 
+### -WhatIf
+
+Shows what would happen without performing the action.
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+
+### -Confirm
+
+Prompts for confirmation before performing the action.
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+
 ## Outputs
 
 | Property | Type | Description |

@@ -4,9 +4,11 @@ nav_order: 7
 ---
 
 # Get-LKDevice
+
 Queries Intune managed devices with flexible filtering.
 
 ## Syntax
+
 ```text
 Get-LKDevice
     [-Name <String[]>]
@@ -21,13 +23,16 @@ Get-LKDevice
 ## Parameters
 
 ### -Name
+
 Search by device name.
+
 | Attribute | Value |
 |---|---|
 | Type | `String[]` |
 | Required | No |
 
 ### -NameMatch
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
@@ -35,14 +40,18 @@ Search by device name.
 | Valid values | Contains, Exact, Wildcard, Regex |
 
 ### -User
+
 Search by primary user display name.
+
 | Attribute | Value |
 |---|---|
 | Type | `String[]` |
 | Required | No |
 
 ### -UserMatch
+
 How `-User` is matched.
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
@@ -50,18 +59,22 @@ How `-User` is matched.
 | Valid values | Contains, Exact, Wildcard, Regex |
 
 ### -OS
+
 Filter by operating system.
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
 | Valid values | Windows, iOS, Android, macOS |
 
 ### -FilterScript
+
 | Attribute | Value |
 |---|---|
 | Type | `ScriptBlock` |
 
 ## Outputs
+
 | Property | Type | Description |
 |---|---|---|
 | Id | String | Intune device ID |
@@ -82,20 +95,24 @@ Filter by operating system.
 ## Examples
 
 ### Example 1 - Search by name
+
 ```powershell
 Get-LKDevice -Name "YOURPC" -NameMatch Contains
 ```
 
 ### Example 2 - By user
+
 ```powershell
 Get-LKDevice -User "John" -OS Windows
 ```
 
 ### Example 3 - Pipeline to group membership
+
 ```powershell
 Get-LKDevice -User "John" | Add-LKGroupMember -GroupName 'SG-Intune-TestDevices'
 ```
 
 ## Related
+
 - [Get-LKDeviceDetail](Get-LKDeviceDetail.md)
 - [Invoke-LKDeviceAction](Invoke-LKDeviceAction.md)

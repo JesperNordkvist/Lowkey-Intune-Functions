@@ -4,9 +4,11 @@ nav_order: 2
 ---
 
 # Add-LKGroupMember
+
 Adds a device or user to an Entra ID group.
 
 ## Syntax
+
 ```text
 # By device name
 Add-LKGroupMember -GroupName <String> -DeviceName <String> [-WhatIf] [-Confirm] [<CommonParameters>]
@@ -27,43 +29,67 @@ Add-LKGroupMember -GroupName <String> [-InputObject <PSCustomObject>] [-WhatIf] 
 ## Parameters
 
 ### -GroupName
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
 | Required | Yes |
 
 ### -DeviceName
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
 | Required | Yes (ByDeviceName) |
 
 ### -DeviceId
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
 | Required | Yes (ByDeviceId) |
 
 ### -UserName
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
 | Required | Yes (ByUserName) |
 
 ### -UserId
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
 | Required | Yes (ByUserId) |
 
 ### -InputObject
+
 A device or user object. Accepted from the pipeline.
+
 | Attribute | Value |
 |---|---|
 | Type | `PSCustomObject` |
 | Pipeline | ByValue |
 
+### -WhatIf
+
+Shows what would happen without performing the action.
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+
+### -Confirm
+
+Prompts for confirmation before performing the action.
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+
 ## Outputs
+
 | Property | Type | Description |
 |---|---|---|
 | GroupName | String | Target group name |
@@ -76,20 +102,24 @@ A device or user object. Accepted from the pipeline.
 ## Examples
 
 ### Example 1 - Add device by name
+
 ```powershell
 Add-LKGroupMember -GroupName 'SG-Intune-TestDevices' -DeviceName 'YOURPC-001'
 ```
 
 ### Example 2 - Pipeline from Get-LKDevice
+
 ```powershell
 Get-LKDevice -User "John" | Add-LKGroupMember -GroupName 'SG-Intune-TestDevices'
 ```
 
 ### Example 3 - Add user
+
 ```powershell
 Get-LKUser -Name "John" | Add-LKGroupMember -GroupName 'SG-Intune-TestUsers'
 ```
 
 ## Related
+
 - [Remove-LKGroupMember](Remove-LKGroupMember.md)
 - [Get-LKGroupMember](Get-LKGroupMember.md)

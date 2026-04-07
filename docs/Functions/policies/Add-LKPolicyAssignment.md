@@ -113,6 +113,22 @@ The deployment intent for app assignments. Only applies to App policy type.
 | Required | No |
 | Valid values | Required, Available, Uninstall |
 
+### -WhatIf
+
+Shows what would happen without performing the action.
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+
+### -Confirm
+
+Prompts for confirmation before performing the action.
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+
 ## Outputs
 
 | Property | Type | Description |

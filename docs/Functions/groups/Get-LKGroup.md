@@ -4,9 +4,11 @@ nav_order: 9
 ---
 
 # Get-LKGroup
+
 Queries Entra ID groups with flexible name filtering.
 
 ## Syntax
+
 ```text
 Get-LKGroup
     [-Name <String[]>]
@@ -18,12 +20,14 @@ Get-LKGroup
 ## Parameters
 
 ### -Name
+
 | Attribute | Value |
 |---|---|
 | Type | `String[]` |
 | Required | No |
 
 ### -NameMatch
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
@@ -31,11 +35,13 @@ Get-LKGroup
 | Valid values | Contains, Exact, Wildcard, Regex |
 
 ### -FilterScript
+
 | Attribute | Value |
 |---|---|
 | Type | `ScriptBlock` |
 
 ## Outputs
+
 | Property | Type | Description |
 |---|---|---|
 | Id | String | Group GUID |
@@ -48,16 +54,19 @@ Get-LKGroup
 ## Examples
 
 ### Example 1 - Wildcard search
+
 ```powershell
 Get-LKGroup -Name "SG-Windows-*" -NameMatch Wildcard
 ```
 
 ### Example 2 - Exact match
+
 ```powershell
 Get-LKGroup -Name "SG-Intune-D-Pilot Devices" -NameMatch Exact
 ```
 
 ## Related
+
 - [New-LKGroup](New-LKGroup.md)
 - [Get-LKGroupAssignment](Get-LKGroupAssignment.md)
 - [Get-LKGroupMember](Get-LKGroupMember.md)

@@ -86,6 +86,22 @@ Restrict to specific types when using `-All`.
 | Type | `PSCustomObject` |
 | Pipeline | ByValue |
 
+### -WhatIf
+
+Shows what would happen without performing the action.
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+
+### -Confirm
+
+Prompts for confirmation before performing the action.
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+
 ## Outputs
 
 | Property | Type | Description |

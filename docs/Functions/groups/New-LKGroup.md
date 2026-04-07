@@ -4,9 +4,11 @@ nav_order: 18
 ---
 
 # New-LKGroup
+
 Creates a new Entra ID security group for Intune.
 
 ## Syntax
+
 ```text
 New-LKGroup
     -Name <String>
@@ -19,25 +21,45 @@ New-LKGroup
 ## Parameters
 
 ### -Name
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
 | Required | Yes |
 
 ### -Description
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
 | Default | (empty) |
 
 ### -GroupType
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
 | Default | Device |
 | Valid values | Device, User |
 
+### -WhatIf
+
+Shows what would happen without performing the action.
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+
+### -Confirm
+
+Prompts for confirmation before performing the action.
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+
 ## Outputs
+
 | Property | Type | Description |
 |---|---|---|
 | Id | String | New group GUID |
@@ -50,15 +72,18 @@ New-LKGroup
 ## Examples
 
 ### Example 1 - Device group
+
 ```powershell
 New-LKGroup -Name 'SG-Intune-TestDevices' -Description 'Test device group'
 ```
 
 ### Example 2 - User group
+
 ```powershell
 New-LKGroup -Name 'SG-Intune-TestUsers' -Description 'Test users' -GroupType User
 ```
 
 ## Related
+
 - [Remove-LKGroup](Remove-LKGroup.md)
 - [Rename-LKGroup](Rename-LKGroup.md)

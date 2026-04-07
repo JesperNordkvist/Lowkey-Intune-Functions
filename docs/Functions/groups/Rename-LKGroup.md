@@ -4,9 +4,11 @@ nav_order: 24
 ---
 
 # Rename-LKGroup
+
 Renames an existing Entra ID group.
 
 ## Syntax
+
 ```text
 # By name
 Rename-LKGroup -Name <String> -NewName <String> [-WhatIf] [-Confirm] [<CommonParameters>]
@@ -18,24 +20,44 @@ Rename-LKGroup -GroupId <String> -NewName <String> [-WhatIf] [-Confirm] [<Common
 ## Parameters
 
 ### -Name
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
 | Required | Yes (ByName) |
 
 ### -GroupId
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
 | Required | Yes (ById) |
 
 ### -NewName
+
 | Attribute | Value |
 |---|---|
 | Type | `String` |
 | Required | Yes |
 
+### -WhatIf
+
+Shows what would happen without performing the action.
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+
+### -Confirm
+
+Prompts for confirmation before performing the action.
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+
 ## Outputs
+
 | Property | Type | Description |
 |---|---|---|
 | GroupId | String | Group GUID |
@@ -44,9 +66,11 @@ Rename-LKGroup -GroupId <String> -NewName <String> [-WhatIf] [-Confirm] [<Common
 | Action | String | `Renamed` |
 
 ## Examples
+
 ```powershell
 Rename-LKGroup -Name 'SG-Old-Name' -NewName 'SG-New-Name'
 ```
 
 ## Related
+
 - [Get-LKGroup](Get-LKGroup.md)
