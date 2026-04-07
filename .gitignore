@@ -12,6 +12,7 @@ TestResults/
 
 # Claude Code
 .claude/
+CLAUDE.md
 
 # OS
 Thumbs.db
