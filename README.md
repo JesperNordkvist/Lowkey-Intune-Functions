@@ -4,7 +4,7 @@ PowerShell module for Microsoft Intune administration via the Microsoft Graph AP
 
 ## Features
 
-- **Policy Management** - Query, rename, and inspect policies across 15 policy types (Settings Catalog, Compliance, Endpoint Security, Platform Scripts, Apps, and more)
+- **Policy Management** - Query, rename, and inspect policies across 16 policy types (Settings Catalog, Compliance, Endpoint Security, Platform Scripts, Apps, and more)
 - **Assignment Operations** - Add, remove, and copy group assignments and exclusions across policies, with scope mismatch protection
 - **Assignment Auditing** - Detect mismatched assignments (e.g., user-scoped policies assigned to device groups) across your entire tenant
 - **Group Operations** - Create, rename, delete groups; manage members; reverse-lookup which policies target a group
@@ -56,6 +56,7 @@ Get-LKPolicy -Name "Microsoft Edge" | Show-LKPolicyDetail
 | `Remediation` | Remediations |
 | `DriverUpdate` | Driver Update Profiles |
 | `App` | Applications (Win32, VPP, Store, LOB, etc.) |
+| `AutopilotDeploymentProfile` | Autopilot Deployment Profiles |
 
 ## Requirements
 

@@ -149,4 +149,14 @@ $script:LKPolicyTypes = @(
         TargetScope      = 'Both'
         AssignmentMethod = 'Standard'
     }
+    @{
+        TypeName         = 'AutopilotDeploymentProfile'
+        DisplayName      = 'Autopilot Deployment Profile'
+        Endpoint         = '/deviceManagement/windowsAutopilotDeploymentProfiles'
+        ApiVersion       = 'beta'
+        AssignmentPath   = '/assignments'
+        NameProperty     = 'displayName'
+        TargetScope      = 'Device'
+        AssignmentMethod = 'Standard'
+    }
 )

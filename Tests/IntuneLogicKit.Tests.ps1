@@ -113,8 +113,8 @@ Describe 'Policy type registry' {
         $types = & $module { $script:LKPolicyTypes }
     }
 
-    It 'Should have 15 policy types registered' {
-        $types.Count | Should -Be 15
+    It 'Should have 16 policy types registered' {
+        $types.Count | Should -Be 16
     }
 
     It 'Each type should have required keys' {

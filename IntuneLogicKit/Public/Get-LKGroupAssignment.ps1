@@ -61,7 +61,7 @@ function Get-LKGroupAssignment {
             'AppProtectionIOS', 'AppProtectionAndroid', 'AppProtectionWindows',
             'AppConfiguration', 'EnrollmentConfiguration', 'PolicySet',
             'GroupPolicyConfiguration', 'PlatformScript', 'Remediation',
-            'DriverUpdate', 'App'
+            'DriverUpdate', 'App', 'AutopilotDeploymentProfile'
         )]
         [string[]]$PolicyType,
 

@@ -23,7 +23,7 @@ Get-LKPolicy
 
 ## Description
 
-Searches across all 15 policy types (or a filtered subset) and returns unified policy objects. Supports flexible name matching, scope resolution, and optional settings retrieval.
+Searches across all 16 policy types (or a filtered subset) and returns unified policy objects. Supports flexible name matching, scope resolution, and optional settings retrieval.
 
 ## Parameters
 

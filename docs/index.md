@@ -64,7 +64,7 @@ Get-LKGroupAssignment -Name 'Pilot Devices' -NameMatch Exact
 ## Features
 
 - **27 commands** covering policies, assignments, groups, devices, and users
-- **15 policy types** supported including Settings Catalog, Endpoint Security, Compliance, Apps, and more
+- **16 policy types** supported including Settings Catalog, Endpoint Security, Compliance, Apps, and more
 - **Pipeline-friendly** - all functions accept and emit objects for chaining
 - **Scope-aware** - automatic detection of user/device scope mismatches
 - **Safe by default** - all write operations support `-WhatIf` and `-Confirm`
@@ -137,3 +137,4 @@ Used with the `-PolicyType` parameter across policy and assignment functions.
 | `Remediation` | Remediations | Device | beta |
 | `DriverUpdate` | Driver Update Profiles | Device | beta |
 | `App` | Applications | Both | v1.0 |
+| `AutopilotDeploymentProfile` | Autopilot Deployment Profiles | Device | beta |

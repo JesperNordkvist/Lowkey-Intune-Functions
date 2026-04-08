@@ -25,7 +25,7 @@ Search-LKSetting
 
 Scans policies across all or specific policy types, retrieves their configured settings, and returns matches where the setting name (or optionally value) matches the search term. Useful for answering "which policies configure this setting?" across your entire tenant.
 
-Supports all 15 policy types including Settings Catalog (with full definition name resolution), Endpoint Security (category-level settings), Group Policy / ADMX (definition values), and flat property extraction for everything else.
+Supports all 16 policy types including Settings Catalog (with full definition name resolution), Endpoint Security (category-level settings), Group Policy / ADMX (definition values), and flat property extraction for everything else.
 
 ## Parameters
 
@@ -56,7 +56,7 @@ Restrict the search to specific policy types. When omitted, all types are search
 |---|---|
 | Type | `String[]` |
 | Required | No |
-| Valid values | DeviceConfiguration, SettingsCatalog, CompliancePolicy, EndpointSecurity, AppProtectionIOS, AppProtectionAndroid, AppProtectionWindows, AppConfiguration, EnrollmentConfiguration, PolicySet, GroupPolicyConfiguration, PlatformScript, Remediation, DriverUpdate, App |
+| Valid values | DeviceConfiguration, SettingsCatalog, CompliancePolicy, EndpointSecurity, AppProtectionIOS, AppProtectionAndroid, AppProtectionWindows, AppConfiguration, EnrollmentConfiguration, PolicySet, GroupPolicyConfiguration, PlatformScript, Remediation, DriverUpdate, App, AutopilotDeploymentProfile |
 
 ### -PolicyName
 
@@ -115,7 +115,7 @@ Controls output format. Table (default) renders a colored table to the host. Lis
 Search-LKSetting -Setting "BitLocker"
 ```
 
-Scans all 15 policy types and returns every setting with "BitLocker" in its name.
+Scans all 16 policy types and returns every setting with "BitLocker" in its name.
 
 ### Example 2 - Narrow to specific policy types
 
