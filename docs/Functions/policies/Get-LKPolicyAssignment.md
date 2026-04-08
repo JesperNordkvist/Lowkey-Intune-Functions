@@ -74,8 +74,9 @@ Controls output format. Default shows full object properties (List). Table shows
 | AssignmentType | String | Include, Exclude, AllDevices, AllUsers, or AllLicensedUsers |
 | GroupId | String | Target group GUID (null for broad targets) |
 | GroupName | String | Target group display name |
-| FilterType | String | Assignment filter type (if configured) |
 | FilterId | String | Assignment filter GUID (if configured) |
+| FilterName | String | Assignment filter display name (if configured) |
+| FilterType | String | Assignment filter mode (if configured) |
 | Intent | String | required, available, or uninstall (apps only) |
 
 ## Examples

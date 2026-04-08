@@ -49,13 +49,25 @@ function Add-LKPolicyAssignment {
         [string[]]$SearchPolicyType,
 
         [ValidateSet('Required', 'Available', 'Uninstall')]
-        [string]$Intent
+        [string]$Intent,
+
+        [string]$FilterName,
+
+        [ValidateSet('Include', 'Exclude')]
+        [string]$FilterMode
     )
 
     begin {
         Assert-LKSession
+
+        if ($FilterName -and -not $FilterMode) { throw "-FilterMode is required when -FilterName is specified." }
+        if ($FilterMode -and -not $FilterName) { throw "-FilterName is required when -FilterMode is specified." }
+
         $groupId = Resolve-LKGroupId -GroupName $GroupName
         $groupScope = Resolve-LKGroupScope -GroupId $groupId
+
+        $filterId = $null
+        if ($FilterName) { $filterId = Resolve-LKFilterId -FilterName $FilterName }
 
         # ByName: resolve policies upfront
         if ($PSCmdlet.ParameterSetName -eq 'ByName') {
@@ -74,6 +86,7 @@ function Add-LKPolicyAssignment {
                 $passThrough = @{}
                 if ($PSBoundParameters.ContainsKey('Confirm')) { $passThrough['Confirm'] = $PSBoundParameters['Confirm'] }
                 if ($Intent) { $passThrough['Intent'] = $Intent }
+                if ($FilterName) { $passThrough['FilterName'] = $FilterName; $passThrough['FilterMode'] = $FilterMode }
                 Add-LKPolicyAssignment -InputObject $pol -GroupName $GroupName @passThrough
             }
             return
@@ -125,18 +138,23 @@ function Add-LKPolicyAssignment {
         }
 
         $intentLabel = if ($Intent) { " ($Intent)" } else { '' }
+        $filterLabel = if ($FilterName) { " [Filter: $FilterName ($FilterMode)]" } else { '' }
         Write-LKActionSummary -Action 'ADD ASSIGNMENT' -Details ([ordered]@{
             Policy = "$name ($($typeEntry.DisplayName))"
-            Group  = "$GroupName (Include)$intentLabel"
+            Group  = "$GroupName (Include)$intentLabel$filterLabel"
             Scope  = "Policy=$policyScope, Group=$groupScope"
         })
 
-        if ($PSCmdlet.ShouldProcess("$name ($($typeEntry.DisplayName))", "Add include assignment for '$GroupName'$intentLabel")) {
+        if ($PSCmdlet.ShouldProcess("$name ($($typeEntry.DisplayName))", "Add include assignment for '$GroupName'$intentLabel$filterLabel")) {
             $newAssignment = @{
                 target = @{
                     '@odata.type' = '#microsoft.graph.groupAssignmentTarget'
                     groupId       = $groupId
                 }
+            }
+            if ($filterId) {
+                $newAssignment.target['deviceAndAppManagementAssignmentFilterId']   = $filterId
+                $newAssignment.target['deviceAndAppManagementAssignmentFilterType'] = $FilterMode.ToLower()
             }
             if ($Intent) {
                 $newAssignment['intent'] = $Intent.ToLower()

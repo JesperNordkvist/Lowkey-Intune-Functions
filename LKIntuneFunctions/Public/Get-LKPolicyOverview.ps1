@@ -107,10 +107,21 @@ function Get-LKPolicyOverview {
                 }
             }
 
+            # Capture assignment filter
+            $filterId   = $target.deviceAndAppManagementAssignmentFilterId
+            $filterType = $target.deviceAndAppManagementAssignmentFilterType
+            $filterName = $null
+            if ($filterId) {
+                $resolved = Resolve-LKFilterName -FilterIds @($filterId)
+                $filterName = $resolved[$filterId]
+            }
+
             $assignments += @{
-                Type      = $assignmentType
-                GroupName = $groupName
-                Intent    = $a.intent
+                Type       = $assignmentType
+                GroupName  = $groupName
+                Intent     = $a.intent
+                FilterName = $filterName
+                FilterType = $filterType
             }
         }
 
@@ -201,6 +212,12 @@ function Get-LKPolicyOverview {
                             default     { $a.Intent }
                         }
                         Write-Host " ($intentLabel)" -ForegroundColor DarkGray -NoNewline
+                    }
+
+                    # Append filter label
+                    if ($a.FilterName) {
+                        $filterModeLabel = if ($a.FilterType -eq 'include') { 'Include' } else { 'Exclude' }
+                        Write-Host " [Filter: $($a.FilterName) ($filterModeLabel)]" -ForegroundColor DarkCyan -NoNewline
                     }
                     Write-Host ''
                 }

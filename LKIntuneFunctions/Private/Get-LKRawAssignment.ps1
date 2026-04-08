@@ -18,7 +18,8 @@ function Get-LKRawAssignment {
 
     if (-not $results) { return @() }
 
-    # Normalize GroupAssignments format to Standard target structure
+    # Normalize GroupAssignments format to Standard target structure.
+    # PlatformScript uses the legacy groupAssignments API which does not support assignment filters.
     if ($PolicyType.AssignmentMethod -eq 'GroupAssignments') {
         $results = @($results | ForEach-Object {
             @{

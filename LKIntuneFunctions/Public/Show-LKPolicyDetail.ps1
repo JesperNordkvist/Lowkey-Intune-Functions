@@ -120,7 +120,14 @@ function Show-LKPolicyDetail {
                     } catch { }
                 }
                 $intent = $a.intent
-                $assignments += @{ Type = $aType; Target = $gName; Intent = $intent }
+                $filterId   = $target.deviceAndAppManagementAssignmentFilterId
+                $filterType = $target.deviceAndAppManagementAssignmentFilterType
+                $filterName = $null
+                if ($filterId) {
+                    $resolved = Resolve-LKFilterName -FilterIds @($filterId)
+                    $filterName = $resolved[$filterId]
+                }
+                $assignments += @{ Type = $aType; Target = $gName; Intent = $intent; FilterName = $filterName; FilterType = $filterType }
             }
         } catch {
             Write-Verbose "Failed to fetch assignments: $($_.Exception.Message)"
@@ -190,10 +197,13 @@ function Show-LKPolicyDetail {
                         'uninstall'     { 'Uninstall' }
                         default         { $a.Intent }
                     }
-                    Write-Host " ($intentLabel)" -ForegroundColor DarkGray
-                } else {
-                    Write-Host ''
+                    Write-Host " ($intentLabel)" -ForegroundColor DarkGray -NoNewline
                 }
+                if ($a.FilterName) {
+                    $filterModeLabel = if ($a.FilterType -eq 'include') { 'Include' } else { 'Exclude' }
+                    Write-Host " [Filter: $($a.FilterName) ($filterModeLabel)]" -ForegroundColor DarkCyan -NoNewline
+                }
+                Write-Host ''
             }
         }
 

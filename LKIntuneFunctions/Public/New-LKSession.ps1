@@ -27,7 +27,7 @@ function New-LKSession {
     }
 
     # Delegated sign-in - opens a browser window, no app registration needed
-    Connect-MgGraph -Scopes $script:LKRequiredScopes -NoWelcome -ErrorAction Stop
+    Connect-MgGraph -Scopes $script:RequiredScopLKes -NoWelcome -ErrorAction Stop
 
     $context = Get-MgContext
 

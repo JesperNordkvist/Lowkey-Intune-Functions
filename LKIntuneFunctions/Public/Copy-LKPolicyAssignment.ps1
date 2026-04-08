@@ -101,19 +101,26 @@ function Copy-LKPolicyAssignment {
             }
         }
 
+        # Carry over assignment filter from source
+        if ($assignment.FilterId) {
+            $newAssignment.target['deviceAndAppManagementAssignmentFilterId']   = $assignment.FilterId
+            $newAssignment.target['deviceAndAppManagementAssignmentFilterType'] = $assignment.FilterType
+        }
+
         # Carry over intent for app assignments
         if ($assignment.Intent) {
             $newAssignment['intent'] = $assignment.Intent
         }
 
         $intentLabel = if ($assignment.Intent) { " ($($assignment.Intent))" } else { '' }
+        $filterLabel = if ($assignment.FilterName) { " [Filter: $($assignment.FilterName) ($($assignment.FilterType))]" } else { '' }
         Write-LKActionSummary -Action 'COPY ASSIGNMENT' -Details ([ordered]@{
             Policy = "$($assignment.PolicyName) ($($assignment.DisplayType))"
-            Source = "$SourceGroup ($($assignment.AssignmentType))$intentLabel"
-            Target = "$TargetGroup ($($assignment.AssignmentType))$intentLabel"
+            Source = "$SourceGroup ($($assignment.AssignmentType))$intentLabel$filterLabel"
+            Target = "$TargetGroup ($($assignment.AssignmentType))$intentLabel$filterLabel"
         })
 
-        if ($PSCmdlet.ShouldProcess("$($assignment.PolicyName) ($($assignment.DisplayType))", "Assign '$TargetGroup' ($($assignment.AssignmentType))$intentLabel")) {
+        if ($PSCmdlet.ShouldProcess("$($assignment.PolicyName) ($($assignment.DisplayType))", "Assign '$TargetGroup' ($($assignment.AssignmentType))$intentLabel$filterLabel")) {
             $updatedAssignments = @($existingAssignments) + @($newAssignment)
 
             try {
@@ -124,6 +131,8 @@ function Copy-LKPolicyAssignment {
                     DisplayType    = $assignment.DisplayType
                     AssignmentType = $assignment.AssignmentType
                     Intent         = $assignment.Intent
+                    FilterName     = $assignment.FilterName
+                    FilterType     = $assignment.FilterType
                     SourceGroup    = $SourceGroup
                     TargetGroup    = $TargetGroup
                     Action         = 'AssignmentCopied'

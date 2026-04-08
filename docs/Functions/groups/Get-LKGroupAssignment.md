@@ -113,6 +113,9 @@ Controls output format. Default shows full object properties (List). Table shows
 | GroupScope | String | Group's effective scope |
 | ScopeMismatch | Boolean | True if scopes conflict |
 | Intent | String | required, available, or uninstall (apps only) |
+| FilterId | String | Assignment filter GUID (if configured) |
+| FilterName | String | Assignment filter display name (if configured) |
+| FilterType | String | Assignment filter mode (if configured) |
 
 ## Examples
 

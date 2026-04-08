@@ -11,6 +11,8 @@ $script:LKSessionPath = Join-Path ([Environment]::GetFolderPath('LocalApplicatio
 
 $script:LKGitHubRepo = 'JesperNordkvist/Lowkey-Intune-Functions'
 
+$script:LKFilterNameCache = @{}
+
 $script:LKRequiredScopes = @(
     'DeviceManagementConfiguration.ReadWrite.All'
     'DeviceManagementManagedDevices.ReadWrite.All'

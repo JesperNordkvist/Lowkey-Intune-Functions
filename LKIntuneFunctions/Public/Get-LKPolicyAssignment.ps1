@@ -107,6 +107,11 @@ function Get-LKPolicyAssignment {
             # Capture assignment filter info if present
             $filterType = $target.deviceAndAppManagementAssignmentFilterType
             $filterId   = $target.deviceAndAppManagementAssignmentFilterId
+            $filterName = $null
+            if ($filterId) {
+                $resolved = Resolve-LKFilterName -FilterIds @($filterId)
+                $filterName = $resolved[$filterId]
+            }
 
             $obj = [PSCustomObject]@{
                 PSTypeName     = 'LKPolicyAssignment'
@@ -116,8 +121,9 @@ function Get-LKPolicyAssignment {
                 AssignmentType = $assignmentType
                 GroupId        = $groupId
                 GroupName      = $groupName
-                FilterType     = $filterType
                 FilterId       = $filterId
+                FilterName     = $filterName
+                FilterType     = $filterType
                 Intent         = $assignment.intent
             }
             if ($DisplayAs -eq 'Table') { $collector.Add($obj) } else { $obj }
@@ -126,7 +132,10 @@ function Get-LKPolicyAssignment {
 
     end {
         if ($DisplayAs -eq 'Table' -and $collector.Count -gt 0) {
-            $collector | Format-Table AssignmentType, GroupName, Intent -AutoSize
+            $columns = @('AssignmentType', 'GroupName')
+            if ($collector | Where-Object { $_.FilterName }) { $columns += 'FilterName' }
+            $columns += 'Intent'
+            $collector | Format-Table $columns -AutoSize
         }
     }
 }

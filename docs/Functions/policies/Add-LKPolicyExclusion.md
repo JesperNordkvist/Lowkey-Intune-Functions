@@ -16,6 +16,8 @@ Add-LKPolicyExclusion
     -PolicyName <String[]>
     [-NameMatch <String>]
     [-SearchPolicyType <String[]>]
+    [-FilterName <String>]
+    [-FilterMode <String>]
     [-WhatIf] [-Confirm]
     [<CommonParameters>]
 
@@ -24,6 +26,8 @@ Add-LKPolicyExclusion
     -GroupName <String>
     -All
     [-PolicyType <String[]>]
+    [-FilterName <String>]
+    [-FilterMode <String>]
     [-WhatIf] [-Confirm]
     [<CommonParameters>]
 
@@ -31,6 +35,8 @@ Add-LKPolicyExclusion
 Add-LKPolicyExclusion
     -GroupName <String>
     [-InputObject <PSCustomObject>]
+    [-FilterName <String>]
+    [-FilterMode <String>]
     [-WhatIf] [-Confirm]
     [<CommonParameters>]
 ```
@@ -87,6 +93,25 @@ When used with `-All`, restricts which policy types are affected.
 |---|---|
 | Type | `PSCustomObject` |
 | Pipeline | ByValue |
+
+### -FilterName
+
+Name of an Intune assignment filter to apply to the exclusion. Must be used together with `-FilterMode`.
+
+| Attribute | Value |
+|---|---|
+| Type | `String` |
+| Required | No |
+
+### -FilterMode
+
+Whether to include or exclude devices matching the filter. Must be used together with `-FilterName`.
+
+| Attribute | Value |
+|---|---|
+| Type | `String` |
+| Required | No |
+| Valid values | Include, Exclude |
 
 ### -WhatIf
 

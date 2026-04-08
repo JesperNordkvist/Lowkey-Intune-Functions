@@ -185,6 +185,8 @@ function Get-LKGroupAssignment {
                             GroupId        = $target.groupId
                             GroupName      = $targetLookup[$target.groupId]
                             Intent         = $assignment.intent
+                            FilterId       = $target.deviceAndAppManagementAssignmentFilterId
+                            FilterType     = $target.deviceAndAppManagementAssignmentFilterType
                         }
                     }
                     continue
@@ -197,6 +199,8 @@ function Get-LKGroupAssignment {
                         GroupId        = $target.groupId
                         GroupName      = $targetLookup[$target.groupId]
                         Intent         = $assignment.intent
+                        FilterId       = $target.deviceAndAppManagementAssignmentFilterId
+                        FilterType     = $target.deviceAndAppManagementAssignmentFilterType
                     }
                     continue
                 }
@@ -223,6 +227,10 @@ function Get-LKGroupAssignment {
                 $type.TargetScope
             }
 
+            # Batch-resolve filter names for this policy's matches
+            $filterIds = @($explicitMatches | ForEach-Object { $_.FilterId } | Where-Object { $_ })
+            $filterNames = if ($filterIds.Count -gt 0) { Resolve-LKFilterName -FilterIds $filterIds } else { @{} }
+
             # Emit explicit matches (filtered by -AssignmentType)
             foreach ($match in $explicitMatches) {
                 if ($AssignmentType -ne 'All' -and $match.AssignmentType -ne $AssignmentType) { continue }
@@ -245,6 +253,9 @@ function Get-LKGroupAssignment {
                     GroupScope     = $gScope
                     ScopeMismatch  = $mismatch
                     Intent         = $match.Intent
+                    FilterId       = $match.FilterId
+                    FilterName     = $filterNames[$match.FilterId]
+                    FilterType     = $match.FilterType
                 }
                 if ($DisplayAs -eq 'Table') { $collector.Add($obj) } else { $obj }
             }
@@ -296,6 +307,9 @@ function Get-LKGroupAssignment {
                             GroupScope     = $gScope
                             ScopeMismatch  = $mismatch
                             Intent         = $broad.Intent
+                            FilterId       = $null
+                            FilterName     = $null
+                            FilterType     = $null
                         }
                         if ($DisplayAs -eq 'Table') { $collector.Add($obj) } else { $obj }
                         break  # One broad target match per group per policy is enough
@@ -328,7 +342,11 @@ function Get-LKGroupAssignment {
                 'available' = 'DarkYellow'
                 'uninstall' = 'Magenta'
             }
+            FilterName     = { param($val, $row) if ($val) { 'DarkCyan' } else { 'DarkGray' } }
         }
-        Write-LKTable -Data $collector -Columns PolicyName, DisplayType, AssignmentType, PolicyScope, Intent -ColorRules $colorRules
+        $columns = @('PolicyName', 'DisplayType', 'AssignmentType')
+        if ($collector | Where-Object { $_.FilterName }) { $columns += 'FilterName' }
+        $columns += 'PolicyScope', 'Intent'
+        Write-LKTable -Data $collector -Columns $columns -ColorRules $colorRules
     }
 }

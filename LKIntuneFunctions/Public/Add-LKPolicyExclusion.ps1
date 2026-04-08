@@ -51,14 +51,26 @@ function Add-LKPolicyExclusion {
             'GroupPolicyConfiguration', 'PlatformScript', 'Remediation',
             'DriverUpdate', 'App'
         )]
-        [string[]]$SearchPolicyType
+        [string[]]$SearchPolicyType,
+
+        [string]$FilterName,
+
+        [ValidateSet('Include', 'Exclude')]
+        [string]$FilterMode
     )
 
     begin {
         Assert-LKSession
+
+        if ($FilterName -and -not $FilterMode) { throw "-FilterMode is required when -FilterName is specified." }
+        if ($FilterMode -and -not $FilterName) { throw "-FilterName is required when -FilterMode is specified." }
+
         $groupId = Resolve-LKGroupId -GroupName $GroupName
         $groupScope = Resolve-LKGroupScope -GroupId $groupId
         $bulkConfirmed = $false
+
+        $filterId = $null
+        if ($FilterName) { $filterId = Resolve-LKFilterId -FilterName $FilterName }
 
         if ($PSCmdlet.ParameterSetName -eq 'ByName') {
             $lookupParams = @{ Name = $PolicyName; NameMatch = $NameMatch }
@@ -73,9 +85,10 @@ function Add-LKPolicyExclusion {
     process {
         if ($PSCmdlet.ParameterSetName -eq 'ByName') {
             foreach ($pol in $resolvedPolicies) {
-                $confirmParam = @{}
-                if ($PSBoundParameters.ContainsKey('Confirm')) { $confirmParam['Confirm'] = $PSBoundParameters['Confirm'] }
-                Add-LKPolicyExclusion -InputObject $pol -GroupName $GroupName @confirmParam
+                $passThrough = @{}
+                if ($PSBoundParameters.ContainsKey('Confirm')) { $passThrough['Confirm'] = $PSBoundParameters['Confirm'] }
+                if ($FilterName) { $passThrough['FilterName'] = $FilterName; $passThrough['FilterMode'] = $FilterMode }
+                Add-LKPolicyExclusion -InputObject $pol -GroupName $GroupName @passThrough
             }
             return
         }
@@ -127,14 +140,16 @@ function Add-LKPolicyExclusion {
                 continue
             }
 
+            $filterLabel = if ($FilterName) { " [Filter: $FilterName ($FilterMode)]" } else { '' }
+
             $shouldProceed = $bulkConfirmed
             if (-not $shouldProceed) {
                 Write-LKActionSummary -Action 'ADD EXCLUSION' -Details ([ordered]@{
                     Policy = "$($policy.Name) ($($typeEntry.DisplayName))"
-                    Group  = "$GroupName (Exclude)"
+                    Group  = "$GroupName (Exclude)$filterLabel"
                     Scope  = "Policy=$policyScope, Group=$groupScope"
                 })
-                $shouldProceed = $PSCmdlet.ShouldProcess("$($policy.Name) ($($typeEntry.DisplayName))", "Add exclusion for '$GroupName'")
+                $shouldProceed = $PSCmdlet.ShouldProcess("$($policy.Name) ($($typeEntry.DisplayName))", "Add exclusion for '$GroupName'$filterLabel")
             }
 
             if ($shouldProceed) {
@@ -143,6 +158,10 @@ function Add-LKPolicyExclusion {
                         '@odata.type' = '#microsoft.graph.exclusionGroupAssignmentTarget'
                         groupId       = $groupId
                     }
+                }
+                if ($filterId) {
+                    $newExclusion.target['deviceAndAppManagementAssignmentFilterId']   = $filterId
+                    $newExclusion.target['deviceAndAppManagementAssignmentFilterType'] = $FilterMode.ToLower()
                 }
 
                 $updatedAssignments = @($assignments) + @($newExclusion)

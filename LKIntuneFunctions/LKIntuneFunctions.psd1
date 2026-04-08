@@ -34,6 +34,7 @@
         'Test-LKPolicyAssignment'
         'Get-LKPolicyOverview'
         'Update-LKModule'
+        'Get-LKAssignmentFilter'
     )
     CmdletsToExport   = @()
     VariablesToExport  = @()

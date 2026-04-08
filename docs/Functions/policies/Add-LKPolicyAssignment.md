@@ -17,6 +17,8 @@ Add-LKPolicyAssignment
     [-NameMatch <String>]
     [-SearchPolicyType <String[]>]
     [-Intent <String>]
+    [-FilterName <String>]
+    [-FilterMode <String>]
     [-WhatIf] [-Confirm]
     [<CommonParameters>]
 
@@ -25,6 +27,8 @@ Add-LKPolicyAssignment
     -GroupName <String>
     [-InputObject <PSCustomObject>]
     [-Intent <String>]
+    [-FilterName <String>]
+    [-FilterMode <String>]
     [-WhatIf] [-Confirm]
     [<CommonParameters>]
 
@@ -34,6 +38,8 @@ Add-LKPolicyAssignment
     -PolicyId <String>
     [-PolicyType <String>]
     [-Intent <String>]
+    [-FilterName <String>]
+    [-FilterMode <String>]
     [-WhatIf] [-Confirm]
     [<CommonParameters>]
 ```
@@ -113,6 +119,25 @@ The deployment intent for app assignments. Only applies to App policy type.
 | Required | No |
 | Valid values | Required, Available, Uninstall |
 
+### -FilterName
+
+Name of an Intune assignment filter to apply to the assignment. Must be used together with `-FilterMode`.
+
+| Attribute | Value |
+|---|---|
+| Type | `String` |
+| Required | No |
+
+### -FilterMode
+
+Whether to include or exclude devices matching the filter. Must be used together with `-FilterName`.
+
+| Attribute | Value |
+|---|---|
+| Type | `String` |
+| Required | No |
+| Valid values | Include, Exclude |
+
 ### -WhatIf
 
 Shows what would happen without performing the action.
@@ -159,7 +184,13 @@ Get-LKPolicy -Name "Contoso - TestConfig" | Add-LKPolicyAssignment -GroupName 'S
 Get-LKPolicy -Name "Google Chrome" -PolicyType App | Add-LKPolicyAssignment -GroupName 'All Users' -Intent Required
 ```
 
-### Example 4 - Fix audit mismatches
+### Example 4 - Assign with a filter
+
+```powershell
+Get-LKPolicy -Name "Windows Update - 24H2" | Add-LKPolicyAssignment -GroupName 'SG-Intune-D-All Devices' -FilterName 'Windows 24H2+ Devices' -FilterMode Include
+```
+
+### Example 5 - Fix audit mismatches
 
 ```powershell
 $mismatches = Test-LKPolicyAssignment | Where-Object Severity -eq 'Mismatch'
