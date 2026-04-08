@@ -254,7 +254,11 @@ function Get-LKGroupAssignment {
                     ScopeMismatch  = $mismatch
                     Intent         = $match.Intent
                     FilterId       = $match.FilterId
-                    FilterName     = if ($match.FilterId) { $filterNames[$match.FilterId] } else { $null }
+                    FilterName     = if ($match.FilterId) {
+                        $fn = $filterNames[$match.FilterId]
+                        $fm = if ($match.FilterType -eq 'include') { 'Include' } elseif ($match.FilterType -eq 'exclude') { 'Exclude' } else { $match.FilterType }
+                        if ($fn) { "$fn ($fm)" } else { $fm }
+                    } else { $null }
                     FilterType     = $match.FilterType
                 }
                 if ($DisplayAs -eq 'Table') { $collector.Add($obj) } else { $obj }

@@ -110,7 +110,9 @@ function Get-LKPolicyAssignment {
             $filterName = $null
             if ($filterId) {
                 $resolved = Resolve-LKFilterName -FilterIds @($filterId)
-                $filterName = $resolved[$filterId]
+                $fn = $resolved[$filterId]
+                $fm = if ($filterType -eq 'include') { 'Include' } elseif ($filterType -eq 'exclude') { 'Exclude' } else { $filterType }
+                $filterName = if ($fn) { "$fn ($fm)" } else { $fm }
             }
 
             $obj = [PSCustomObject]@{
