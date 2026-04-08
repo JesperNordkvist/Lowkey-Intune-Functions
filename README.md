@@ -82,6 +82,7 @@ The following delegated scopes are requested during `New-LKSession`:
 - **Tab Completion** - Custom argument completers for `-PolicyType`, `-PolicyName`, and other parameters for IntelliSense support
 - **Compare-LKPolicySetting** - Side-by-side comparison of settings between two or more policies to identify configuration drift
 - **Export-LKPolicy** - Export policies and their settings to JSON/CSV for documentation, auditing, or migration
+- **Test-LKPolicyConflict** - Detect policies with overlapping settings assigned to the same groups, surfacing potential configuration conflicts
 
 ## Documentation
 
