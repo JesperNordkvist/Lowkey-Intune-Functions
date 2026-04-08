@@ -15,7 +15,7 @@ PowerShell module for Microsoft Intune administration via the Microsoft Graph AP
 
 ```powershell
 # Import the module
-Import-Module .\LKIntuneFunctions\LKIntuneFunctions.psd1
+Import-Module .\IntuneLogicKit\IntuneLogicKit.psd1
 
 # Connect to your tenant
 New-LKSession

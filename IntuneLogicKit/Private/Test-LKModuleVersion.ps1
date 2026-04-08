@@ -1,10 +1,10 @@
 function Test-LKModuleVersion {
     <#
     .SYNOPSIS
-        Checks GitHub for a newer module release and notifies the user.
+        Checks GitHub for a newer module release and prompts the user to update.
     #>
     try {
-        $manifestPath = Join-Path $PSScriptRoot '..\LKIntuneFunctions.psd1'
+        $manifestPath = Join-Path $PSScriptRoot '..\IntuneLogicKit.psd1'
         $manifest = Import-PowerShellDataFile $manifestPath
         $currentVersion = [version]$manifest.ModuleVersion
 
@@ -16,8 +16,13 @@ function Test-LKModuleVersion {
         if ($latestVersion -gt $currentVersion) {
             Write-Host ''
             Write-Host "  Update available: v$latestVersion (installed: v$currentVersion)" -ForegroundColor Yellow
-            Write-Host "  Run Update-LKModule to update, or download from: $($releaseInfo.html_url)" -ForegroundColor Yellow
-            Write-Host ''
+            $response = Read-Host '  Install update now? (Y/N)'
+            if ($response -match '^[Yy]') {
+                Update-LKModule -Confirm:$false
+            } else {
+                Write-Host "  Run Update-LKModule when you're ready." -ForegroundColor DarkGray
+                Write-Host ''
+            }
         }
     } catch {
         # Version check is non-critical - fail silently

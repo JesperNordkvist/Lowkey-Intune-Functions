@@ -7,7 +7,7 @@ $script:LKSession = @{
     ConnectedAt = $null
 }
 
-$script:LKSessionPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'LKIntuneFunctions\session.json'
+$script:LKSessionPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'IntuneLogicKit\session.json'
 
 $script:LKGitHubRepo = 'JesperNordkvist/Intune-Logic-Kit'
 

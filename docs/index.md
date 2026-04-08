@@ -23,7 +23,7 @@ Manage policies, assignments, groups, devices, and users from the command line w
 3. Import the module:
 
 ```powershell
-Import-Module .\LKIntuneFunctions\LKIntuneFunctions.psd1
+Import-Module .\IntuneLogicKit\IntuneLogicKit.psd1
 ```
 
 ### Option 2 - Clone the repository
@@ -35,7 +35,7 @@ git clone https://github.com/JesperNordkvist/Intune-Logic-Kit.git
 Then import the module:
 
 ```powershell
-Import-Module .\Intune-Logic-Kit\LKIntuneFunctions\LKIntuneFunctions.psd1
+Import-Module .\Intune-Logic-Kit\IntuneLogicKit\IntuneLogicKit.psd1
 ```
 
 ---

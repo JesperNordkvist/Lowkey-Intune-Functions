@@ -1,11 +1,11 @@
 BeforeAll {
-    $ModulePath = "$PSScriptRoot\..\LKIntuneFunctions\LKIntuneFunctions.psd1"
+    $ModulePath = "$PSScriptRoot\..\IntuneLogicKit\IntuneLogicKit.psd1"
     Import-Module $ModulePath -Force
 }
 
-Describe 'Module: LKIntuneFunctions' {
+Describe 'Module: IntuneLogicKit' {
     It 'Should import without errors' {
-        Get-Module -Name LKIntuneFunctions | Should -Not -BeNullOrEmpty
+        Get-Module -Name IntuneLogicKit | Should -Not -BeNullOrEmpty
     }
 
     It 'Should export all expected public functions' {
@@ -36,14 +36,14 @@ Describe 'Module: LKIntuneFunctions' {
             'Show-LKPolicyDetail'
         )
 
-        $exportedFunctions = (Get-Module -Name LKIntuneFunctions).ExportedFunctions.Keys
+        $exportedFunctions = (Get-Module -Name IntuneLogicKit).ExportedFunctions.Keys
         foreach ($fn in $expectedFunctions) {
             $exportedFunctions | Should -Contain $fn
         }
     }
 
     It 'Should not export private functions' {
-        $exportedFunctions = (Get-Module -Name LKIntuneFunctions).ExportedFunctions.Keys
+        $exportedFunctions = (Get-Module -Name IntuneLogicKit).ExportedFunctions.Keys
         $exportedFunctions | Should -Not -Contain 'Assert-LKSession'
         $exportedFunctions | Should -Not -Contain 'Invoke-LKGraphRequest'
         $exportedFunctions | Should -Not -Contain 'Resolve-LKGroupId'
@@ -62,7 +62,7 @@ Describe 'Session state' {
 Describe 'Test-LKNameMatch (via module internals)' {
     BeforeAll {
         # Access the private function via the module scope
-        $module = Get-Module LKIntuneFunctions
+        $module = Get-Module IntuneLogicKit
         $testMatch = & $module { Get-Command Test-LKNameMatch }
     }
 
@@ -109,7 +109,7 @@ Describe 'Test-LKNameMatch (via module internals)' {
 
 Describe 'Policy type registry' {
     BeforeAll {
-        $module = Get-Module LKIntuneFunctions
+        $module = Get-Module IntuneLogicKit
         $types = & $module { $script:LKPolicyTypes }
     }
 
@@ -137,7 +137,7 @@ Describe 'Policy type registry' {
 
 Describe 'Required scopes' {
     BeforeAll {
-        $module = Get-Module LKIntuneFunctions
+        $module = Get-Module IntuneLogicKit
         $scopes = & $module { $script:LKRequiredScopes }
     }
 
@@ -171,5 +171,5 @@ Describe 'Functions requiring session should throw without one' {
 }
 
 AfterAll {
-    Remove-Module -Name LKIntuneFunctions -ErrorAction SilentlyContinue
+    Remove-Module -Name IntuneLogicKit -ErrorAction SilentlyContinue
 }
