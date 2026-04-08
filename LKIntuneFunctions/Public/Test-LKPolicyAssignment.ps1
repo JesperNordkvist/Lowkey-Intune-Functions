@@ -194,31 +194,31 @@ function Test-LKPolicyAssignment {
                 $gScope = $groupScopeCache[$groupId]
 
                 # Determine mismatch
-                $severity = $null
+                $issueSeverity = $null
                 $detail = $null
 
                 if ($gScope.Scope -eq 'Unknown') {
-                    $severity = 'Info'
+                    $issueSeverity = 'Info'
                     $detail = "Group scope could not be determined (empty or unresolvable group)"
                 }
                 elseif ($policyScope -eq 'Device' -and $gScope.Scope -eq 'User') {
-                    $severity = 'Mismatch'
+                    $issueSeverity = 'Mismatch'
                     $detail = "Device-scoped policy assigned to user group ($($gScope.UserCount) users, $($gScope.DeviceCount) devices)"
                 }
                 elseif ($policyScope -eq 'User' -and $gScope.Scope -eq 'Device') {
-                    $severity = 'Mismatch'
+                    $issueSeverity = 'Mismatch'
                     $detail = "User-scoped policy assigned to device group ($($gScope.DeviceCount) devices, $($gScope.UserCount) users)"
                 }
                 elseif ($policyScope -eq 'Device' -and $gScope.Scope -eq 'Both') {
-                    $severity = 'Warning'
+                    $issueSeverity = 'Warning'
                     $detail = "Device-scoped policy assigned to mixed group ($($gScope.DeviceCount) devices, $($gScope.UserCount) users)"
                 }
                 elseif ($policyScope -eq 'User' -and $gScope.Scope -eq 'Both') {
-                    $severity = 'Warning'
+                    $issueSeverity = 'Warning'
                     $detail = "User-scoped policy assigned to mixed group ($($gScope.UserCount) users, $($gScope.DeviceCount) devices)"
                 }
 
-                if ($severity) {
+                if ($issueSeverity) {
                     $issues.Add([PSCustomObject]@{
                         PSTypeName   = 'LKPolicyAssignmentIssue'
                         PolicyId     = $raw.id
@@ -231,7 +231,7 @@ function Test-LKPolicyAssignment {
                         GroupScope   = $gScope.Scope
                         DeviceCount  = $gScope.DeviceCount
                         UserCount    = $gScope.UserCount
-                        Severity     = $severity
+                        Severity     = $issueSeverity
                         Detail       = $detail
                     })
                 }
