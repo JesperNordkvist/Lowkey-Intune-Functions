@@ -77,7 +77,7 @@ The following delegated scopes are requested during `New-LKSession`:
 
 ## Documentation
 
-Full function reference and examples: [https://jespernordkvist.github.io/Lowkey-Intune-Functions/](https://jespernordkvist.github.io/Lowkey-Intune-Functions/)
+Full function reference and examples: [https://jespernordkvist.github.io/Intune-Logic-Kit/](https://jespernordkvist.github.io/Intune-Logic-Kit/)
 
 ## License
 

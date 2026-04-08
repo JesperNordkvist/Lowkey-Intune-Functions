@@ -9,7 +9,7 @@ $script:LKSession = @{
 
 $script:LKSessionPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'LKIntuneFunctions\session.json'
 
-$script:LKGitHubRepo = 'JesperNordkvist/Lowkey-Intune-Functions'
+$script:LKGitHubRepo = 'JesperNordkvist/Intune-Logic-Kit'
 
 $script:LKFilterNameCache = @{}
 

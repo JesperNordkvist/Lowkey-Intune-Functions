@@ -18,7 +18,7 @@ Manage policies, assignments, groups, devices, and users from the command line w
 
 ### Option 1 - Download the latest release
 
-1. Download the latest release [here](https://github.com/JesperNordkvist/Lowkey-Intune-Functions/releases/latest)
+1. Download the latest release [here](https://github.com/JesperNordkvist/Intune-Logic-Kit/releases/latest)
 2. Extract the zip to a folder of your choice
 3. Import the module:
 
@@ -29,13 +29,13 @@ Import-Module .\LKIntuneFunctions\LKIntuneFunctions.psd1
 ### Option 2 - Clone the repository
 
 ```
-git clone https://github.com/JesperNordkvist/Lowkey-Intune-Functions.git
+git clone https://github.com/JesperNordkvist/Intune-Logic-Kit.git
 ```
 
 Then import the module:
 
 ```powershell
-Import-Module .\Lowkey-Intune-Functions\LKIntuneFunctions\LKIntuneFunctions.psd1
+Import-Module .\Intune-Logic-Kit\LKIntuneFunctions\LKIntuneFunctions.psd1
 ```
 
 ---

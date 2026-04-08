@@ -3,13 +3,13 @@ description: PowerShell module for Intune management via Microsoft Graph API
 remote_theme: just-the-docs/just-the-docs@v0.10.0
 
 url: https://jespernordkvist.github.io
-baseurl: /Lowkey-Intune-Functions
+baseurl: /Intune-Logic-Kit
 
 permalink: pretty
 
 aux_links:
   "GitHub":
-    - "https://github.com/JesperNordkvist/Lowkey-Intune-Functions"
+    - "https://github.com/JesperNordkvist/Intune-Logic-Kit"
 
 nav_sort: case_insensitive
 
