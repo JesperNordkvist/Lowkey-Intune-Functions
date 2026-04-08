@@ -25,32 +25,16 @@ function Resolve-LKFilterName {
 
     if ($uncached.Count -eq 0) { return $map }
 
-    # Batch-resolve uncached IDs in groups of 15
-    $batchSize = 15
-    for ($i = 0; $i -lt $uncached.Count; $i += $batchSize) {
-        $batch = $uncached[$i..[Math]::Min($i + $batchSize - 1, $uncached.Count - 1)]
-        $filterClauses = $batch | ForEach-Object { "id eq '$_'" }
-        $filter = $filterClauses -join ' or '
-        $uri = "/deviceManagement/assignmentFilters?`$filter=$filter&`$select=id,displayName"
-
+    # Resolve uncached IDs individually
+    foreach ($id in $uncached) {
         try {
-            $results = Invoke-LKGraphRequest -Method GET -Uri $uri -ApiVersion 'beta' -All
-            foreach ($f in $results) {
-                if ($f.id) {
-                    $script:LKFilterNameCache[$f.id] = $f.displayName
-                    $map[$f.id] = $f.displayName
-                }
-            }
+            $f = Invoke-LKGraphRequest -Method GET -Uri "/deviceManagement/assignmentFilters/$id`?`$select=id,displayName" -ApiVersion 'beta'
+            $script:LKFilterNameCache[$id] = $f.displayName
+            $map[$id] = $f.displayName
         } catch {
-            Write-Verbose "Failed to resolve filter names: $($_.Exception.Message)"
-        }
-
-        # Cache $null for IDs not found to avoid re-querying
-        foreach ($id in $batch) {
-            if (-not $script:LKFilterNameCache.ContainsKey($id)) {
-                $script:LKFilterNameCache[$id] = $null
-                $map[$id] = $null
-            }
+            Write-Verbose "Failed to resolve filter $id`: $($_.Exception.Message)"
+            $script:LKFilterNameCache[$id] = $null
+            $map[$id] = $null
         }
     }
 
