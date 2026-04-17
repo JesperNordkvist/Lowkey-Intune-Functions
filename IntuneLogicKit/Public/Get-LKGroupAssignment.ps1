@@ -43,6 +43,12 @@ function Get-LKGroupAssignment {
     .EXAMPLE
         Get-LKGroupAssignment -Name 'Pilot Devices' -DisplayAs Table
         Shows results as a compact table.
+    .EXAMPLE
+        Get-LKGroupAssignment -Name 'SG-Intune-U-Pilot Users','SG-Intune-D-Pilot Devices' -NameMatch Exact -Effective
+        Collapses assignments across the named groups into one row per policy, applying
+        per-scope Exclude-wins. Returns EffectiveState + UserPath/DevicePath columns so
+        you can see, for a user in the user group(s) + a device in the device group(s),
+        which policies actually apply.
     #>
     [CmdletBinding(DefaultParameterSetName = 'ByName')]
     param(
@@ -71,12 +77,28 @@ function Get-LKGroupAssignment {
         [string]$AssignmentType = 'All',
 
         [ValidateSet('List', 'Table')]
-        [string]$DisplayAs = 'List'
+        [string]$DisplayAs = 'List',
+
+        [switch]$Effective,
+
+        [switch]$AppliedOnly
     )
 
     Assert-LKSession
 
-    if ($DisplayAs -eq 'Table') { $collector = [System.Collections.Generic.List[object]]::new() }
+    if ($Effective -and $AssignmentType -ne 'All') {
+        Write-Warning "-Effective overrides -AssignmentType; computing across Include and Exclude together."
+        $AssignmentType = 'All'
+    }
+
+    if ($AppliedOnly -and -not $Effective) {
+        Write-Warning "-AppliedOnly requires -Effective; enabling -Effective."
+        $Effective = $true
+    }
+
+    if ($DisplayAs -eq 'Table' -or $Effective) {
+        $collector = [System.Collections.Generic.List[object]]::new()
+    }
 
     # Resolve target group(s)
     $targetGroups = @()
@@ -261,7 +283,7 @@ function Get-LKGroupAssignment {
                     } else { $null }
                     FilterType     = $match.FilterType
                 }
-                if ($DisplayAs -eq 'Table') { $collector.Add($obj) } else { $obj }
+                if ($null -ne $collector) { $collector.Add($obj) } else { $obj }
             }
 
             # Emit broad targets: show all AllDevices/AllUsers/AllLicensedUsers assignments
@@ -315,7 +337,7 @@ function Get-LKGroupAssignment {
                             FilterName     = $null
                             FilterType     = $null
                         }
-                        if ($DisplayAs -eq 'Table') { $collector.Add($obj) } else { $obj }
+                        if ($null -ne $collector) { $collector.Add($obj) } else { $obj }
                         break  # One broad target match per group per policy is enough
                     }
                 }
@@ -324,6 +346,111 @@ function Get-LKGroupAssignment {
     }
 
     Write-Progress -Activity "Scanning assignments for $groupLabel" -Completed
+
+    if ($Effective) {
+        if (-not $collector -or $collector.Count -eq 0) { return }
+
+        $effectiveResults = foreach ($group in ($collector | Group-Object PolicyId)) {
+            $rows  = $group.Group
+            $first = $rows[0]
+
+            # Partition rows into user-scope / device-scope buckets.
+            # Broad targets have inherent scope; Include/Exclude inherit group scope.
+            # Unknown/Both group scope contributes to both buckets (conservative).
+            $userRows   = [System.Collections.Generic.List[object]]::new()
+            $deviceRows = [System.Collections.Generic.List[object]]::new()
+            foreach ($r in $rows) {
+                switch ($r.AssignmentType) {
+                    'AllDevices'       { $deviceRows.Add($r); break }
+                    'AllUsers'         { $userRows.Add($r);   break }
+                    'AllLicensedUsers' { $userRows.Add($r);   break }
+                    default {
+                        switch ($r.GroupScope) {
+                            'User'   { $userRows.Add($r) }
+                            'Device' { $deviceRows.Add($r) }
+                            default  { $userRows.Add($r); $deviceRows.Add($r) }
+                        }
+                    }
+                }
+            }
+
+            $uInc = @($userRows   | Where-Object { $_.AssignmentType -in 'Include','AllUsers','AllLicensedUsers' })
+            $uExc = @($userRows   | Where-Object { $_.AssignmentType -eq 'Exclude' })
+            $dInc = @($deviceRows | Where-Object { $_.AssignmentType -in 'Include','AllDevices' })
+            $dExc = @($deviceRows | Where-Object { $_.AssignmentType -eq 'Exclude' })
+
+            # Per-scope exclude-wins: a user-group Exclude only cancels the
+            # user-scope delivery path; a device-group Exclude only cancels
+            # the device-scope path.
+            $userDelivered   = $uInc.Count -gt 0 -and $uExc.Count -eq 0
+            $deviceDelivered = $dInc.Count -gt 0 -and $dExc.Count -eq 0
+
+            $deliveryRows      = @($uInc) + @($dInc) | Where-Object { $_ }
+            $unfilteredDeliver = @($deliveryRows | Where-Object { -not $_.FilterName })
+
+            $state = if ($userDelivered -or $deviceDelivered) {
+                         if ($unfilteredDeliver.Count -gt 0) { 'Applied' } else { 'Conditional' }
+                     }
+                     elseif ($uExc.Count -gt 0 -or $dExc.Count -gt 0) { 'Excluded' }
+                     else                                             { 'NotApplied' }
+
+            $formatPath = {
+                param($inc, $exc)
+                if ($exc.Count -gt 0) {
+                    'Excluded:' + (($exc | ForEach-Object GroupName | Select-Object -Unique) -join ',')
+                } elseif ($inc.Count -gt 0) {
+                    (@($inc | ForEach-Object {
+                        if ($_.AssignmentType -eq 'Include') { "Include:$($_.GroupName)" } else { $_.AssignmentType }
+                    } | Select-Object -Unique) -join '; ')
+                } else { '-' }
+            }
+
+            $filters = @($rows | Where-Object FilterName | Select-Object -ExpandProperty FilterName -Unique)
+
+            [PSCustomObject]@{
+                PSTypeName     = 'LKEffectiveAssignment'
+                PolicyId       = $first.PolicyId
+                PolicyName     = $first.PolicyName
+                PolicyType     = $first.PolicyType
+                DisplayType    = $first.DisplayType
+                PolicyScope    = $first.PolicyScope
+                EffectiveState = $state
+                UserPath       = & $formatPath $uInc $uExc
+                DevicePath     = & $formatPath $dInc $dExc
+                FilterName     = $filters -join '; '
+            }
+        }
+
+        if ($AppliedOnly) {
+            $effectiveResults = @($effectiveResults | Where-Object { $_.EffectiveState -in 'Applied','Conditional' })
+        }
+
+        if ($DisplayAs -eq 'Table') {
+            $colorRules = @{
+                PolicyName     = { param($val, $row) 'White' }
+                DisplayType    = { param($val, $row) 'Gray' }
+                EffectiveState = @{
+                    'Applied'     = 'Green'
+                    'Conditional' = 'DarkYellow'
+                    'Excluded'    = 'Magenta'
+                    'NotApplied'  = 'DarkGray'
+                }
+                PolicyScope    = @{
+                    'Device' = 'Cyan'
+                    'User'   = 'DarkYellow'
+                    'Both'   = 'White'
+                }
+                FilterName     = { param($val, $row) if ($val) { 'DarkCyan' } else { 'DarkGray' } }
+            }
+            $columns = @('PolicyName', 'DisplayType', 'EffectiveState', 'UserPath', 'DevicePath')
+            if ($effectiveResults | Where-Object { $_.FilterName }) { $columns += 'FilterName' }
+            $columns += 'PolicyScope'
+            Write-LKTable -Data $effectiveResults -Columns $columns -ColorRules $colorRules
+        } else {
+            $effectiveResults
+        }
+        return
+    }
 
     if ($DisplayAs -eq 'Table' -and $collector.Count -gt 0) {
         $colorRules = @{

@@ -18,6 +18,8 @@ Get-LKGroupAssignment
     [-SkipScopeResolution]
     [-AssignmentType <String>]
     [-DisplayAs <String>]
+    [-Effective]
+    [-AppliedOnly]
     [<CommonParameters>]
 
 # By ID
@@ -27,6 +29,8 @@ Get-LKGroupAssignment
     [-SkipScopeResolution]
     [-AssignmentType <String>]
     [-DisplayAs <String>]
+    [-Effective]
+    [-AppliedOnly]
     [<CommonParameters>]
 ```
 
@@ -98,6 +102,28 @@ Controls output format. Default shows full object properties (List). Table shows
 | Default | List |
 | Valid values | List, Table |
 
+### -Effective
+
+Collapses assignments across all named groups into one row per policy, applying Intune's per-scope Exclude-wins precedence. Use when you want to know, for a user in the user group(s) + a device in the device group(s), which policies actually apply.
+
+Intune's real rule: Excludes only take effect for the scope (user or device) that matches the excluded group. A user-group Exclude cannot cancel a device's `AllDevices` delivery path, and vice versa. `-Effective` computes delivery per scope and combines them.
+
+When `-Effective` is set, the output schema changes — see the Effective Outputs table below. `-AssignmentType` is ignored (forced to `All`).
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+
+### -AppliedOnly
+
+Filters `-Effective` output to policies that actually deliver to the group(s) (`EffectiveState` of `Applied` or `Conditional`). `Excluded` and `NotApplied` rows are hidden. Implies `-Effective`.
+
+Use when you want the answer to: "for a user in these groups on a device in these groups, what actually hits them?"
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+
 ## Outputs
 
 | Property | Type | Description |
@@ -116,6 +142,20 @@ Controls output format. Default shows full object properties (List). Table shows
 | FilterId | String | Assignment filter GUID (if configured) |
 | FilterName | String | Assignment filter display name (if configured) |
 | FilterType | String | Assignment filter mode (if configured) |
+
+### Effective Outputs (with `-Effective`)
+
+| Property | Type | Description |
+|---|---|---|
+| PolicyId | String | Graph object ID |
+| PolicyName | String | Policy display name |
+| PolicyType | String | Normalised type key |
+| DisplayType | String | Human-readable type label |
+| PolicyScope | String | Resolved scope |
+| EffectiveState | String | `Applied`, `Conditional` (delivered only via filtered assignment), `Excluded`, or `NotApplied` |
+| UserPath | String | User-scope delivery path (e.g. `Include:<group>`, `AllLicensedUsers`, `Excluded:<group>`, `-`) |
+| DevicePath | String | Device-scope delivery path (e.g. `Include:<group>`, `AllDevices`, `Excluded:<group>`, `-`) |
+| FilterName | String | Semicolon-joined filter names from contributing rows |
 
 ## Examples
 
@@ -148,6 +188,29 @@ Get-LKGroupAssignment -Name 'Pilot' -PolicyType CompliancePolicy, SettingsCatalo
 ```powershell
 Get-LKGroupAssignment -Name 'All Users' -PolicyType App | Format-Table PolicyName, Intent
 ```
+
+### Example 6 - Joint effective assessment across user + device groups
+
+```powershell
+Get-LKGroupAssignment `
+    -Name 'SG-Intune-U-Pilot Users','SG-Intune-D-Pilot Devices' `
+    -NameMatch Exact `
+    -Effective |
+    Sort-Object EffectiveState, DisplayType, PolicyName |
+    Format-Table DisplayType, PolicyName, EffectiveState, UserPath, DevicePath, FilterName -AutoSize
+```
+
+Answers: for a user in `SG-Intune-U-Pilot Users` whose device is in `SG-Intune-D-Pilot Devices`, which policies effectively apply? Excludes are evaluated per-scope — a user-group Exclude won't cancel the device's `AllDevices` delivery path, and vice versa.
+
+### Example 7 - Only what actually hits the user + device
+
+```powershell
+Get-LKGroupAssignment -Name 'SG-Intune-U-Pilot Users','SG-Intune-D-Pilot Devices' -NameMatch Exact -AppliedOnly |
+    Sort-Object DisplayType, PolicyName |
+    Format-Table DisplayType, PolicyName, UserPath, DevicePath, FilterName -AutoSize
+```
+
+Hides `Excluded` and `NotApplied` rows so you see only the policies that actually deliver. `-AppliedOnly` implies `-Effective`.
 
 ## Related
 

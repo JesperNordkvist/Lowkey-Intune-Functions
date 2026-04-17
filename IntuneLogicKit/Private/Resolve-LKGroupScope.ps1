@@ -27,34 +27,38 @@ function Resolve-LKGroupScope {
         return 'Unknown'
     }
 
-    # Assigned group: check the first few members
-    try {
-        $response = Invoke-LKGraphRequest -Method GET `
-            -Uri "/groups/$GroupId/members?`$top=5&`$select=id,@odata.type" `
-            -ApiVersion 'v1.0'
-        $members = $response.value
-    } catch {
-        return 'Unknown'
-    }
-
-    if (-not $members -or $members.Count -eq 0) { return 'Unknown' }
-
+    # Assigned group: probe user and device members via type-cast filters.
+    # Type casts are unambiguous and avoid relying on @odata.type annotations
+    # (which Graph sometimes omits from $select responses).
+    $hasUsers = $false
     $hasDevices = $false
-    $hasUsers   = $false
-    foreach ($member in $members) {
-        $odataType = $member.'@odata.type'
-        if ($odataType -like '*device*') { $hasDevices = $true }
-        if ($odataType -like '*user*')   { $hasUsers = $true }
+    try {
+        $userProbe = Invoke-LKGraphRequest -Method GET `
+            -Uri "/groups/$GroupId/members/microsoft.graph.user?`$top=1&`$select=id" `
+            -ApiVersion 'v1.0'
+        if ($userProbe.value -and $userProbe.value.Count -gt 0) { $hasUsers = $true }
+    } catch {
+        Write-Verbose "User-member probe failed for $GroupId`: $($_.Exception.Message)"
+    }
+    try {
+        $deviceProbe = Invoke-LKGraphRequest -Method GET `
+            -Uri "/groups/$GroupId/members/microsoft.graph.device?`$top=1&`$select=id" `
+            -ApiVersion 'v1.0'
+        if ($deviceProbe.value -and $deviceProbe.value.Count -gt 0) { $hasDevices = $true }
+    } catch {
+        Write-Verbose "Device-member probe failed for $GroupId`: $($_.Exception.Message)"
     }
 
     if ($hasDevices -and $hasUsers) { return 'Both' }
     if ($hasDevices) { return 'Device' }
     if ($hasUsers)   { return 'User' }
 
-    # Fallback: infer scope from group naming convention
+    # Empty group or mixed/unclassified members: fall back to name heuristic.
+    # U/D/C tokens in the display name (e.g. 'SG-Intune-U-Pilot Users',
+    # 'SG-Intune-D-Pilot Devices') reliably encode member scope.
     $groupName = $group.displayName
     if ($groupName) {
-        if ($groupName -match '[-–]\s*U\s*[-–]') { return 'User' }
+        if ($groupName -match '[-–]\s*U\s*[-–]')    { return 'User' }
         if ($groupName -match '[-–]\s*[DC]\s*[-–]') { return 'Device' }
     }
 
