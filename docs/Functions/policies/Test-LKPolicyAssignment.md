@@ -35,7 +35,7 @@ Group scope results are cached to avoid redundant API calls across policies that
 |---|---|
 | Type | `String[]` |
 | Required | No |
-| Valid values | DeviceConfiguration, SettingsCatalog, CompliancePolicy, EndpointSecurity, AppProtectionIOS, AppProtectionAndroid, AppProtectionWindows, AppConfiguration, EnrollmentConfiguration, PolicySet, GroupPolicyConfiguration, PlatformScript, Remediation, DriverUpdate, App |
+| Valid values | DeviceConfiguration, SettingsCatalog, CompliancePolicy, EndpointSecurity, AppProtectionIOS, AppProtectionAndroid, AppProtectionWindows, AppConfiguration, EnrollmentConfiguration, PolicySet, GroupPolicyConfiguration, PlatformScript, Remediation, DriverUpdate, App, AutopilotDeploymentProfile |
 
 ### -Name
 
@@ -122,16 +122,50 @@ Renders the findings as a colour-coded table including `AssignmentType` and `Fil
 
 ### Example 5 - Remediate mismatches
 
+> **⚠️ Warning - bulk remediation rewrites live policy assignments.**
+> The loop below removes and re-adds group assignments across every flagged
+> policy. Always run it as a `-WhatIf` dry run first, review the output line by
+> line, and confirm the replacement group names are correct for your tenant
+> before applying it. A wrong group name will strip a working assignment.
+
+The loop remediates only the findings that are safe to automate, and
+deliberately leaves two categories for manual review:
+
+- **Group-based mismatches only** (`AssignmentType` of `Include` or `Exclude`).
+  Broad-target findings (`AllDevices` / `AllUsers` / `AllLicensedUsers`) are
+  skipped - removing "All Users" from a policy has a far larger blast radius.
+  Handle those by hand with the `-AllDevices` / `-AllLicensedUsers` switches on
+  [Add-LKPolicyAssignment](Add-LKPolicyAssignment.md) /
+  [Remove-LKPolicyAssignment](Remove-LKPolicyAssignment.md).
+- **`GroupPolicyConfiguration` (ADMX) policies are skipped.** ADMX policies can
+  legitimately carry both user- and machine-class settings and be validly
+  assigned to either group type, so they must not be auto-remediated.
+
 ```powershell
-$mismatches = Test-LKPolicyAssignment | Where-Object Severity -eq 'Mismatch'
+# Replace these with the real target groups for your tenant.
+$deviceGroup = 'SG-Intune-D-Pilot Devices'
+$userGroup   = 'SG-Intune-U-Pilot Users'
+
+$mismatches = Test-LKPolicyAssignment |
+    Where-Object {
+        $_.Severity       -eq 'Mismatch' -and
+        $_.AssignmentType -in 'Include', 'Exclude' -and
+        $_.PolicyTypeId   -ne 'GroupPolicyConfiguration'
+    }
+
 foreach ($m in $mismatches) {
+    $correctGroup = if ($m.PolicyScope -eq 'Device') { $deviceGroup } else { $userGroup }
+
+    # Dry run - inspect the output, then drop -WhatIf to apply.
     Remove-LKPolicyAssignment -PolicyName $m.PolicyName -NameMatch Exact `
-        -SearchPolicyType $m.PolicyTypeId -GroupName $m.GroupName -Confirm:$false
-    $correctGroup = if ($m.PolicyScope -eq 'Device') { "Device-Group" } else { "User-Group" }
+        -SearchPolicyType $m.PolicyTypeId -GroupName $m.GroupName -WhatIf
     Add-LKPolicyAssignment -PolicyName $m.PolicyName -NameMatch Exact `
-        -SearchPolicyType $m.PolicyTypeId -GroupName $correctGroup -Confirm:$false
+        -SearchPolicyType $m.PolicyTypeId -GroupName $correctGroup -WhatIf
 }
 ```
+
+Once the `-WhatIf` output is verified, replace `-WhatIf` with `-Confirm:$false`
+to apply the changes.
 
 ## Related
 
