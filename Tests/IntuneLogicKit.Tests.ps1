@@ -170,6 +170,96 @@ Describe 'Functions requiring session should throw without one' {
     }
 }
 
+Describe 'Resolve-LKGroupScope: empty assigned group fallback (issue #5)' {
+    # Regression coverage for issue #5. An assigned (non-dynamic) group with no
+    # members must still resolve its scope from the U/D/C tokens in its display
+    # name instead of returning 'Unknown'. The name heuristic must stay reachable
+    # for empty groups - it must not be gated behind an early 'Unknown' return.
+
+    It 'Empty group with a -U- name token resolves to User' {
+        InModuleScope IntuneLogicKit {
+            Mock Invoke-LKGraphRequest {
+                if ($Uri -like '*/members/*') { return [pscustomobject]@{ value = @() } }
+                return [pscustomobject]@{
+                    displayName                   = 'SG-Intune-U-Empty Test'
+                    membershipRule                = $null
+                    membershipRuleProcessingState = 'Off'
+                    groupTypes                    = @()
+                }
+            }
+            Resolve-LKGroupScope -GroupId '00000000-0000-0000-0000-0000000000a1' |
+                Should -Be 'User'
+        }
+    }
+
+    It 'Empty group with a -D- name token resolves to Device' {
+        InModuleScope IntuneLogicKit {
+            Mock Invoke-LKGraphRequest {
+                if ($Uri -like '*/members/*') { return [pscustomobject]@{ value = @() } }
+                return [pscustomobject]@{
+                    displayName                   = 'SG-Intune-D-Empty Test'
+                    membershipRule                = $null
+                    membershipRuleProcessingState = 'Off'
+                    groupTypes                    = @()
+                }
+            }
+            Resolve-LKGroupScope -GroupId '00000000-0000-0000-0000-0000000000a2' |
+                Should -Be 'Device'
+        }
+    }
+
+    It 'Empty group with a -C- name token resolves to Device' {
+        InModuleScope IntuneLogicKit {
+            Mock Invoke-LKGraphRequest {
+                if ($Uri -like '*/members/*') { return [pscustomobject]@{ value = @() } }
+                return [pscustomobject]@{
+                    displayName                   = 'SG-Intune-C-Empty Test'
+                    membershipRule                = $null
+                    membershipRuleProcessingState = 'Off'
+                    groupTypes                    = @()
+                }
+            }
+            Resolve-LKGroupScope -GroupId '00000000-0000-0000-0000-0000000000a3' |
+                Should -Be 'Device'
+        }
+    }
+
+    It 'Empty group whose name carries no scope token resolves to Unknown' {
+        InModuleScope IntuneLogicKit {
+            Mock Invoke-LKGraphRequest {
+                if ($Uri -like '*/members/*') { return [pscustomobject]@{ value = @() } }
+                return [pscustomobject]@{
+                    displayName                   = 'Marketing Team'
+                    membershipRule                = $null
+                    membershipRuleProcessingState = 'Off'
+                    groupTypes                    = @()
+                }
+            }
+            Resolve-LKGroupScope -GroupId '00000000-0000-0000-0000-0000000000a4' |
+                Should -Be 'Unknown'
+        }
+    }
+
+    It 'Actual members take precedence over a misleading name token' {
+        InModuleScope IntuneLogicKit {
+            Mock Invoke-LKGraphRequest {
+                if ($Uri -like '*/members/microsoft.graph.user*') {
+                    return [pscustomobject]@{ value = @([pscustomobject]@{ id = 'u1' }) }
+                }
+                if ($Uri -like '*/members/*') { return [pscustomobject]@{ value = @() } }
+                return [pscustomobject]@{
+                    displayName                   = 'SG-Intune-D-Mislabeled'
+                    membershipRule                = $null
+                    membershipRuleProcessingState = 'Off'
+                    groupTypes                    = @()
+                }
+            }
+            Resolve-LKGroupScope -GroupId '00000000-0000-0000-0000-0000000000a5' |
+                Should -Be 'User'
+        }
+    }
+}
+
 AfterAll {
     Remove-Module -Name IntuneLogicKit -ErrorAction SilentlyContinue
 }
