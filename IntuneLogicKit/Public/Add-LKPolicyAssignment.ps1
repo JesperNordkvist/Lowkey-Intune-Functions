@@ -1,7 +1,8 @@
 function Add-LKPolicyAssignment {
     <#
     .SYNOPSIS
-        Adds a group as an include assignment to one or more Intune policies.
+        Adds an include assignment to one or more Intune policies.
+        The target can be an Entra ID group, all devices, or all licensed users.
     .EXAMPLE
         Get-LKPolicy -Name "XW365 - TestConfig" | Add-LKPolicyAssignment -GroupName 'SG-Intune-TestDevices'
     .EXAMPLE
@@ -9,11 +10,18 @@ function Add-LKPolicyAssignment {
     .EXAMPLE
         Get-LKPolicy -Name "Google Chrome" -PolicyType App | Add-LKPolicyAssignment -GroupName 'All Users' -Intent Required
         Assigns an app as Required to a group.
+    .EXAMPLE
+        Add-LKPolicyAssignment -PolicyName "Windows - Compliance" -NameMatch Exact -AllDevices
+        Assigns a policy to the built-in All Devices target.
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High', DefaultParameterSetName = 'ByName')]
     param(
-        [Parameter(Mandatory)]
+        [Parameter()]
         [string]$GroupName,
+
+        [switch]$AllDevices,
+
+        [switch]$AllLicensedUsers,
 
         [Parameter(ValueFromPipeline, ParameterSetName = 'ByPipeline')]
         [PSCustomObject]$InputObject,
@@ -63,8 +71,50 @@ function Add-LKPolicyAssignment {
         if ($FilterName -and -not $FilterMode) { throw "-FilterMode is required when -FilterName is specified." }
         if ($FilterMode -and -not $FilterName) { throw "-FilterName is required when -FilterMode is specified." }
 
-        $groupId = Resolve-LKGroupId -GroupName $GroupName
-        $groupScope = Resolve-LKGroupScope -GroupId $groupId
+        # Exactly one assignment target must be specified.
+        $targetChoices = @()
+        if ($GroupName)        { $targetChoices += 'GroupName' }
+        if ($AllDevices)       { $targetChoices += 'AllDevices' }
+        if ($AllLicensedUsers) { $targetChoices += 'AllLicensedUsers' }
+        if ($targetChoices.Count -eq 0) {
+            throw "An assignment target is required: specify -GroupName, -AllDevices, or -AllLicensedUsers."
+        }
+        if ($targetChoices.Count -gt 1) {
+            throw "-GroupName, -AllDevices, and -AllLicensedUsers are mutually exclusive - specify only one."
+        }
+
+        # Resolve the chosen target into a common shape used throughout process{}.
+        switch ($targetChoices[0]) {
+            'AllDevices' {
+                $targetKind     = 'AllDevices'
+                $targetLabel    = 'All Devices'
+                $targetScope    = 'Device'
+                $targetTypeName = 'allDevicesAssignmentTarget'
+                $groupId        = $null
+            }
+            'AllLicensedUsers' {
+                $targetKind     = 'AllLicensedUsers'
+                $targetLabel    = 'All Licensed Users'
+                $targetScope    = 'User'
+                $targetTypeName = 'allLicensedUsersAssignmentTarget'
+                $groupId        = $null
+            }
+            default {
+                $targetKind     = 'Group'
+                $targetLabel    = $GroupName
+                $targetTypeName = 'groupAssignmentTarget'
+                $groupId        = Resolve-LKGroupId -GroupName $GroupName
+                $targetScope    = Resolve-LKGroupScope -GroupId $groupId
+            }
+        }
+        $targetODataType = "#microsoft.graph.$targetTypeName"
+
+        # The target switch to forward when ByName fans out to per-policy calls.
+        $targetParam = switch ($targetKind) {
+            'AllDevices'       { @{ AllDevices = $true } }
+            'AllLicensedUsers' { @{ AllLicensedUsers = $true } }
+            default            { @{ GroupName = $GroupName } }
+        }
 
         $filterId = $null
         if ($FilterName) { $filterId = Resolve-LKFilterId -FilterName $FilterName }
@@ -87,7 +137,7 @@ function Add-LKPolicyAssignment {
                 if ($PSBoundParameters.ContainsKey('Confirm')) { $passThrough['Confirm'] = $PSBoundParameters['Confirm'] }
                 if ($Intent) { $passThrough['Intent'] = $Intent }
                 if ($FilterName) { $passThrough['FilterName'] = $FilterName; $passThrough['FilterMode'] = $FilterMode }
-                Add-LKPolicyAssignment -InputObject $pol -GroupName $GroupName @passThrough
+                Add-LKPolicyAssignment -InputObject $pol @targetParam @passThrough
             }
             return
         }
@@ -117,23 +167,34 @@ function Add-LKPolicyAssignment {
             return
         }
 
+        # Broad targets cannot be expressed through the legacy group-assignment
+        # API used by GroupAssignments-method policy types (e.g. Platform Scripts).
+        if ($targetKind -ne 'Group' -and $typeEntry.AssignmentMethod -eq 'GroupAssignments') {
+            Write-Warning "Skipping '$name': $($typeEntry.DisplayName) policies do not support the '$targetLabel' target through this module."
+            return
+        }
+
         $assignments = Get-LKRawAssignment -PolicyId $id -PolicyType $typeEntry
 
         $alreadyIncluded = $assignments | Where-Object {
-            $_.target.'@odata.type' -like '*groupAssignmentTarget' -and
-            $_.target.'@odata.type' -notlike '*exclusion*' -and
-            $_.target.groupId -eq $groupId
+            if ($targetKind -eq 'Group') {
+                $_.target.'@odata.type' -like '*groupAssignmentTarget' -and
+                $_.target.'@odata.type' -notlike '*exclusion*' -and
+                $_.target.groupId -eq $groupId
+            } else {
+                $_.target.'@odata.type' -like "*$targetTypeName"
+            }
         }
         if ($alreadyIncluded) {
-            Write-Verbose "Skipping '$name' - group already assigned."
+            Write-Verbose "Skipping '$name' - '$targetLabel' already assigned."
             return
         }
 
         # Scope mismatch check - skip the assignment if scopes are incompatible
         $policyScope = $typeEntry.TargetScope
         if ($InputObject -and $InputObject.TargetScope) { $policyScope = $InputObject.TargetScope }
-        if ($groupScope -ne 'Unknown' -and $policyScope -ne 'Both' -and $groupScope -ne $policyScope) {
-            Write-Warning "Skipping '$name': group '$GroupName' is a $groupScope group, but policy is $policyScope-scoped."
+        if ($targetScope -ne 'Unknown' -and $policyScope -ne 'Both' -and $targetScope -ne $policyScope) {
+            Write-Warning "Skipping '$name': target '$targetLabel' is $targetScope-scoped, but the policy is $policyScope-scoped."
             return
         }
 
@@ -141,21 +202,20 @@ function Add-LKPolicyAssignment {
         $filterLabel = if ($FilterName) { " [Filter: $FilterName ($FilterMode)]" } else { '' }
         Write-LKActionSummary -Action 'ADD ASSIGNMENT' -Details ([ordered]@{
             Policy = "$name ($($typeEntry.DisplayName))"
-            Group  = "$GroupName (Include)$intentLabel$filterLabel"
-            Scope  = "Policy=$policyScope, Group=$groupScope"
+            Target = "$targetLabel (Include)$intentLabel$filterLabel"
+            Scope  = "Policy=$policyScope, Target=$targetScope"
         })
 
-        if ($PSCmdlet.ShouldProcess("$name ($($typeEntry.DisplayName))", "Add include assignment for '$GroupName'$intentLabel$filterLabel")) {
-            $newAssignment = @{
-                target = @{
-                    '@odata.type' = '#microsoft.graph.groupAssignmentTarget'
-                    groupId       = $groupId
-                }
+        if ($PSCmdlet.ShouldProcess("$name ($($typeEntry.DisplayName))", "Add include assignment for '$targetLabel'$intentLabel$filterLabel")) {
+            $newTarget = @{ '@odata.type' = $targetODataType }
+            if ($targetKind -eq 'Group') {
+                $newTarget['groupId'] = $groupId
             }
             if ($filterId) {
-                $newAssignment.target['deviceAndAppManagementAssignmentFilterId']   = $filterId
-                $newAssignment.target['deviceAndAppManagementAssignmentFilterType'] = $FilterMode.ToLower()
+                $newTarget['deviceAndAppManagementAssignmentFilterId']   = $filterId
+                $newTarget['deviceAndAppManagementAssignmentFilterType'] = $FilterMode.ToLower()
             }
+            $newAssignment = @{ target = $newTarget }
             if ($Intent) {
                 $newAssignment['intent'] = $Intent.ToLower()
             }
@@ -168,7 +228,7 @@ function Add-LKPolicyAssignment {
                     PolicyName = $name
                     PolicyType = $typeEntry.TypeName
                     Action     = 'AssignmentAdded'
-                    GroupName  = $GroupName
+                    GroupName  = $targetLabel
                     GroupId    = $groupId
                 }
             } catch {

@@ -5,14 +5,14 @@ nav_order: 3
 
 # Add-LKPolicyAssignment
 
-Adds a group as an include assignment to one or more Intune policies.
+Adds an include assignment to one or more Intune policies. The assignment target can be an Entra ID group, **all devices**, or **all licensed users**.
 
 ## Syntax
 
 ```text
 # By name (default)
 Add-LKPolicyAssignment
-    -GroupName <String>
+    (-GroupName <String> | -AllDevices | -AllLicensedUsers)
     -PolicyName <String[]>
     [-NameMatch <String>]
     [-SearchPolicyType <String[]>]
@@ -24,7 +24,7 @@ Add-LKPolicyAssignment
 
 # Pipeline
 Add-LKPolicyAssignment
-    -GroupName <String>
+    (-GroupName <String> | -AllDevices | -AllLicensedUsers)
     [-InputObject <PSCustomObject>]
     [-Intent <String>]
     [-FilterName <String>]
@@ -34,7 +34,7 @@ Add-LKPolicyAssignment
 
 # By ID
 Add-LKPolicyAssignment
-    -GroupName <String>
+    (-GroupName <String> | -AllDevices | -AllLicensedUsers)
     -PolicyId <String>
     [-PolicyType <String>]
     [-Intent <String>]
@@ -46,18 +46,38 @@ Add-LKPolicyAssignment
 
 ## Description
 
-For each target policy, fetches the current assignments, appends a group include entry, and writes back the complete assignment set. Policies that already include the group are silently skipped. Performs a scope mismatch check - if the group scope is incompatible with the policy scope, the assignment is skipped with a warning.
+For each target policy, fetches the current assignments, appends an include entry, and writes back the complete assignment set. Policies that already include the target are silently skipped. Performs a scope mismatch check - if the target scope is incompatible with the policy scope, the assignment is skipped with a warning.
+
+Exactly one assignment target must be specified - `-GroupName`, `-AllDevices`, or `-AllLicensedUsers`. The three are mutually exclusive; specifying none, or more than one, throws.
 
 ## Parameters
 
 ### -GroupName
 
-The exact display name of the Entra ID group to assign.
+The exact display name of the Entra ID group to assign. One of `-GroupName`, `-AllDevices`, or `-AllLicensedUsers` is required.
 
 | Attribute | Value |
 |---|---|
 | Type | `String` |
-| Required | Yes |
+| Required | One of three assignment targets |
+
+### -AllDevices
+
+Assigns to the built-in **All Devices** target (`#microsoft.graph.allDevicesAssignmentTarget`). Treated as Device-scoped for the mismatch check. Mutually exclusive with `-GroupName` and `-AllLicensedUsers`.
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+| Required | One of three assignment targets |
+
+### -AllLicensedUsers
+
+Assigns to the built-in **All Licensed Users** target (`#microsoft.graph.allLicensedUsersAssignmentTarget`). Treated as User-scoped for the mismatch check. Mutually exclusive with `-GroupName` and `-AllDevices`.
+
+| Attribute | Value |
+|---|---|
+| Type | `SwitchParameter` |
+| Required | One of three assignment targets |
 
 ### -PolicyName
 
@@ -84,7 +104,7 @@ Restrict the policy name search to specific types.
 |---|---|
 | Type | `String[]` |
 | Required | No |
-| Valid values | DeviceConfiguration, SettingsCatalog, CompliancePolicy, EndpointSecurity, AppProtectionIOS, AppProtectionAndroid, AppProtectionWindows, AppConfiguration, EnrollmentConfiguration, PolicySet, GroupPolicyConfiguration, PlatformScript, Remediation, DriverUpdate, App |
+| Valid values | DeviceConfiguration, SettingsCatalog, CompliancePolicy, EndpointSecurity, AppProtectionIOS, AppProtectionAndroid, AppProtectionWindows, AppConfiguration, EnrollmentConfiguration, PolicySet, GroupPolicyConfiguration, PlatformScript, Remediation, DriverUpdate, App, AutopilotDeploymentProfile |
 
 ### -InputObject
 
@@ -111,7 +131,7 @@ Optional - auto-resolved if omitted.
 
 ### -Intent
 
-The deployment intent for app assignments. Only applies to App policy type.
+The deployment intent for app assignments. Only applies to the App policy type. Also applies to broad targets.
 
 | Attribute | Value |
 |---|---|
@@ -121,7 +141,7 @@ The deployment intent for app assignments. Only applies to App policy type.
 
 ### -FilterName
 
-Name of an Intune assignment filter to apply to the assignment. Must be used together with `-FilterMode`.
+Name of an Intune assignment filter to apply to the assignment. Must be used together with `-FilterMode`. Applies to group and broad targets alike.
 
 | Attribute | Value |
 |---|---|
@@ -161,8 +181,8 @@ Prompts for confirmation before performing the action.
 | PolicyName | String | Modified policy name |
 | PolicyType | String | Normalised type key |
 | Action | String | `AssignmentAdded` |
-| GroupName | String | Assigned group name |
-| GroupId | String | Assigned group GUID |
+| GroupName | String | Assigned target name (`All Devices` / `All Licensed Users` for broad targets) |
+| GroupId | String | Assigned group GUID (empty for broad targets) |
 
 ## Examples
 
@@ -190,27 +210,25 @@ Get-LKPolicy -Name "Google Chrome" -PolicyType App | Add-LKPolicyAssignment -Gro
 Get-LKPolicy -Name "Windows Update - 24H2" | Add-LKPolicyAssignment -GroupName 'SG-Intune-D-All Devices' -FilterName 'Windows 24H2+ Devices' -FilterMode Include
 ```
 
-### Example 5 - Fix audit mismatches
+### Example 5 - Assign to the All Devices broad target
 
 ```powershell
-$mismatches = Test-LKPolicyAssignment | Where-Object Severity -eq 'Mismatch'
-foreach ($m in $mismatches) {
-    Remove-LKPolicyAssignment -PolicyName $m.PolicyName -NameMatch Exact `
-        -SearchPolicyType $m.PolicyTypeId -GroupName $m.GroupName -Confirm:$false
-    $correctGroup = if ($m.PolicyScope -eq 'Device') {
-        "SG-Intune-D-Pilot Devices"
-    } else {
-        "SG-Intune-U-Pilot Users"
-    }
-    Add-LKPolicyAssignment -PolicyName $m.PolicyName -NameMatch Exact `
-        -SearchPolicyType $m.PolicyTypeId -GroupName $correctGroup -Confirm:$false
-}
+Add-LKPolicyAssignment -PolicyName "Contoso - Win - Compliance" -NameMatch Exact -AllDevices
+```
+
+### Example 6 - Assign to All Licensed Users
+
+```powershell
+Get-LKPolicy -Name "Contoso - App Protection" | Add-LKPolicyAssignment -AllLicensedUsers
 ```
 
 ## Notes
 
-- Performs a scope mismatch check before assigning.
+- Exactly one of `-GroupName`, `-AllDevices`, `-AllLicensedUsers` is required.
+- Performs a scope mismatch check before assigning. `-AllDevices` counts as Device-scoped, `-AllLicensedUsers` as User-scoped.
+- Broad targets are **not** supported for Platform Script policies (they use the legacy group-assignment API, which only accepts group IDs); such policies are skipped with a warning.
 - To add an exclusion instead, use [Add-LKPolicyExclusion](Add-LKPolicyExclusion.md).
+- For an audit-and-remediate workflow, see Example 5 in [Test-LKPolicyAssignment](Test-LKPolicyAssignment.md).
 
 ## Related
 

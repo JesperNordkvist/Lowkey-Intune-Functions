@@ -348,6 +348,82 @@ Describe 'Resolve-LKPolicyScope: ADMX class-aware scope (issue #3)' {
     }
 }
 
+Describe 'Add/Remove-LKPolicyAssignment: broad targets (issue #1)' {
+    # Coverage for issue #1: -AllDevices / -AllLicensedUsers switches on
+    # Add-LKPolicyAssignment and Remove-LKPolicyAssignment.
+
+    BeforeEach {
+        Mock Assert-LKSession      -ModuleName IntuneLogicKit { }
+        Mock Write-LKActionSummary -ModuleName IntuneLogicKit { }
+        Mock Set-LKRawAssignment   -ModuleName IntuneLogicKit { }
+        # A broad target must never trigger group resolution.
+        Mock Resolve-LKGroupId     -ModuleName IntuneLogicKit { throw 'Resolve-LKGroupId should not be called for a broad target.' }
+    }
+
+    It 'Add throws when -AllDevices and -AllLicensedUsers are combined' {
+        { Add-LKPolicyAssignment -PolicyId 'p1' -PolicyType SettingsCatalog -AllDevices -AllLicensedUsers -Confirm:$false } |
+            Should -Throw '*mutually exclusive*'
+    }
+
+    It 'Add throws when no assignment target is given' {
+        { Add-LKPolicyAssignment -PolicyId 'p1' -PolicyType SettingsCatalog -Confirm:$false } |
+            Should -Throw '*assignment target is required*'
+    }
+
+    It 'Add -AllDevices builds an allDevices target with no groupId and no group lookup' {
+        Mock Get-LKRawAssignment -ModuleName IntuneLogicKit { @() }
+
+        Add-LKPolicyAssignment -PolicyId 'p1' -PolicyType SettingsCatalog -AllDevices -Confirm:$false
+
+        Should -Invoke Resolve-LKGroupId -ModuleName IntuneLogicKit -Times 0 -Exactly
+        Should -Invoke Set-LKRawAssignment -ModuleName IntuneLogicKit -Times 1 -Exactly -ParameterFilter {
+            $Assignments.Count -eq 1 -and
+            $Assignments[0].target.'@odata.type' -eq '#microsoft.graph.allDevicesAssignmentTarget' -and
+            -not $Assignments[0].target.ContainsKey('groupId')
+        }
+    }
+
+    It 'Add -AllLicensedUsers builds an allLicensedUsers target' {
+        Mock Get-LKRawAssignment -ModuleName IntuneLogicKit { @() }
+
+        Add-LKPolicyAssignment -PolicyId 'p1' -PolicyType SettingsCatalog -AllLicensedUsers -Confirm:$false
+
+        Should -Invoke Set-LKRawAssignment -ModuleName IntuneLogicKit -Times 1 -Exactly -ParameterFilter {
+            $Assignments[0].target.'@odata.type' -eq '#microsoft.graph.allLicensedUsersAssignmentTarget'
+        }
+    }
+
+    It 'Add -AllLicensedUsers on a Device-scoped policy is skipped by the scope check' {
+        Mock Get-LKRawAssignment -ModuleName IntuneLogicKit { @() }
+
+        Add-LKPolicyAssignment -PolicyId 'p1' -PolicyType Remediation -AllLicensedUsers -Confirm:$false -WarningAction SilentlyContinue
+
+        Should -Invoke Set-LKRawAssignment -ModuleName IntuneLogicKit -Times 0 -Exactly
+    }
+
+    It 'Remove throws when no assignment target is given' {
+        { Remove-LKPolicyAssignment -PolicyId 'p1' -PolicyType SettingsCatalog -Confirm:$false } |
+            Should -Throw '*assignment target is required*'
+    }
+
+    It 'Remove -AllDevices drops only the all-devices target' {
+        Mock Get-LKRawAssignment -ModuleName IntuneLogicKit {
+            @(
+                @{ target = @{ '@odata.type' = '#microsoft.graph.allDevicesAssignmentTarget' } }
+                @{ target = @{ '@odata.type' = '#microsoft.graph.groupAssignmentTarget'; groupId = 'g1' } }
+            )
+        }
+
+        Remove-LKPolicyAssignment -PolicyId 'p1' -PolicyType SettingsCatalog -AllDevices -Confirm:$false
+
+        Should -Invoke Resolve-LKGroupId -ModuleName IntuneLogicKit -Times 0 -Exactly
+        Should -Invoke Set-LKRawAssignment -ModuleName IntuneLogicKit -Times 1 -Exactly -ParameterFilter {
+            $Assignments.Count -eq 1 -and
+            $Assignments[0].target.'@odata.type' -eq '#microsoft.graph.groupAssignmentTarget'
+        }
+    }
+}
+
 AfterAll {
     Remove-Module -Name IntuneLogicKit -ErrorAction SilentlyContinue
 }
