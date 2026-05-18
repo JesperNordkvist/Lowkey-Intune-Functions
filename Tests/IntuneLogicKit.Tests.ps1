@@ -260,6 +260,94 @@ Describe 'Resolve-LKGroupScope: empty assigned group fallback (issue #5)' {
     }
 }
 
+Describe 'Resolve-LKPolicyScope: ADMX class-aware scope (issue #3)' {
+    # Regression coverage for issue #3. A GroupPolicyConfiguration (ADMX) policy
+    # must resolve its scope from ALL of its definition values, not just the
+    # first one. A policy mixing 'user' and 'machine' class settings is valid
+    # against either target and must resolve to 'Both' so the assignment audit
+    # does not flag (and a remediation loop does not strip) legitimate
+    # user-group assignments.
+
+    BeforeEach {
+        # Every test starts with an empty ADMX class cache.
+        InModuleScope IntuneLogicKit { $script:LKAdmxClassCache = @{} }
+    }
+
+    It 'Mixed user + machine ADMX policy resolves to Both' {
+        InModuleScope IntuneLogicKit {
+            Mock Invoke-LKGraphRequest {
+                @(
+                    [pscustomobject]@{ definition = [pscustomobject]@{ classType = 'user' } }
+                    [pscustomobject]@{ definition = [pscustomobject]@{ classType = 'machine' } }
+                    [pscustomobject]@{ definition = [pscustomobject]@{ classType = 'user' } }
+                )
+            }
+            $policyType = @{ TypeName = 'GroupPolicyConfiguration'; TargetScope = 'Both'; NameProperty = 'displayName' }
+            $rawPolicy  = [pscustomobject]@{ id = 'admx-mixed-1'; displayName = 'IE Trusted sites' }
+            Resolve-LKPolicyScope -RawPolicy $rawPolicy -PolicyType $policyType |
+                Should -Be 'Both'
+        }
+    }
+
+    It 'ADMX policy with only user-class settings resolves to User' {
+        InModuleScope IntuneLogicKit {
+            Mock Invoke-LKGraphRequest {
+                @(
+                    [pscustomobject]@{ definition = [pscustomobject]@{ classType = 'user' } }
+                    [pscustomobject]@{ definition = [pscustomobject]@{ classType = 'user' } }
+                )
+            }
+            $policyType = @{ TypeName = 'GroupPolicyConfiguration'; TargetScope = 'Both'; NameProperty = 'displayName' }
+            $rawPolicy  = [pscustomobject]@{ id = 'admx-user-1'; displayName = 'OneDrive for Business' }
+            Resolve-LKPolicyScope -RawPolicy $rawPolicy -PolicyType $policyType |
+                Should -Be 'User'
+        }
+    }
+
+    It 'ADMX policy with only machine-class settings resolves to Device' {
+        InModuleScope IntuneLogicKit {
+            Mock Invoke-LKGraphRequest {
+                @(
+                    [pscustomobject]@{ definition = [pscustomobject]@{ classType = 'machine' } }
+                    [pscustomobject]@{ definition = [pscustomobject]@{ classType = 'machine' } }
+                )
+            }
+            $policyType = @{ TypeName = 'GroupPolicyConfiguration'; TargetScope = 'Both'; NameProperty = 'displayName' }
+            $rawPolicy  = [pscustomobject]@{ id = 'admx-machine-1'; displayName = 'Defender Settings' }
+            Resolve-LKPolicyScope -RawPolicy $rawPolicy -PolicyType $policyType |
+                Should -Be 'Device'
+        }
+    }
+
+    It 'ADMX policy with no definition values falls through to the name heuristic' {
+        InModuleScope IntuneLogicKit {
+            Mock Invoke-LKGraphRequest { @() }
+            $policyType = @{ TypeName = 'GroupPolicyConfiguration'; TargetScope = 'Both'; NameProperty = 'displayName' }
+            $rawPolicy  = [pscustomobject]@{ id = 'admx-empty-1'; displayName = 'Contoso - U - Settings' }
+            Resolve-LKPolicyScope -RawPolicy $rawPolicy -PolicyType $policyType |
+                Should -Be 'User'
+        }
+    }
+
+    It 'Definition values are fetched once per policy and cached' {
+        InModuleScope IntuneLogicKit {
+            Mock Invoke-LKGraphRequest {
+                @(
+                    [pscustomobject]@{ definition = [pscustomobject]@{ classType = 'user' } }
+                    [pscustomobject]@{ definition = [pscustomobject]@{ classType = 'machine' } }
+                )
+            }
+            $policyType = @{ TypeName = 'GroupPolicyConfiguration'; TargetScope = 'Both'; NameProperty = 'displayName' }
+            $rawPolicy  = [pscustomobject]@{ id = 'admx-cache-1'; displayName = 'Cached Policy' }
+
+            Resolve-LKPolicyScope -RawPolicy $rawPolicy -PolicyType $policyType | Should -Be 'Both'
+            Resolve-LKPolicyScope -RawPolicy $rawPolicy -PolicyType $policyType | Should -Be 'Both'
+
+            Should -Invoke Invoke-LKGraphRequest -Exactly -Times 1
+        }
+    }
+}
+
 AfterAll {
     Remove-Module -Name IntuneLogicKit -ErrorAction SilentlyContinue
 }

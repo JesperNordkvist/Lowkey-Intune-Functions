@@ -65,19 +65,49 @@ function Resolve-LKPolicyScope {
         }
 
         'GroupPolicyConfiguration' {
-            # Check the classType on the first definition value
-            try {
-                $defValuesResponse = Invoke-LKGraphRequest -Method GET `
-                    -Uri "/deviceManagement/groupPolicyConfigurations/$($RawPolicy.id)/definitionValues?`$expand=definition&`$top=1" `
-                    -ApiVersion 'beta'
-                $defValuesList = $defValuesResponse.value
-                if ($defValuesList -and $defValuesList.Count -gt 0) {
-                    $classType = $defValuesList[0].definition.classType
-                    if ($classType -eq 'user')    { return 'User' }
-                    if ($classType -eq 'machine') { return 'Device' }
+            # ADMX (Group Policy) configurations contain definitions of mixed
+            # class: 'user' (HKCU) and 'machine' (HKLM). A policy carrying both
+            # classes can be validly assigned to user groups AND device groups,
+            # so it must resolve to 'Both'. Inspecting only the first definition
+            # value misclassified mixed policies and produced false mismatches.
+            if (-not $script:LKAdmxClassCache) { $script:LKAdmxClassCache = @{} }
+
+            $policyId = $RawPolicy.id
+            if ($policyId -and -not $script:LKAdmxClassCache.ContainsKey($policyId)) {
+                try {
+                    # Enumerate every definition value, but pull only each linked
+                    # definition's classType so the payload stays small on ADMX
+                    # policies that carry hundreds of settings.
+                    $defValues = Invoke-LKGraphRequest -Method GET `
+                        -Uri "/deviceManagement/groupPolicyConfigurations/$policyId/definitionValues?`$expand=definition(`$select=classType)" `
+                        -ApiVersion 'beta' -All
+                    $script:LKAdmxClassCache[$policyId] = @(
+                        $defValues |
+                            ForEach-Object { $_.definition.classType } |
+                            Where-Object { $_ } |
+                            Sort-Object -Unique
+                    )
+                } catch {
+                    Write-Verbose "Resolve-LKPolicyScope: failed to fetch definition values for ADMX policy $($policyId): $($_.Exception.Message)"
+                    $script:LKAdmxClassCache[$policyId] = @()
                 }
-            } catch {
-                Write-Verbose "Resolve-LKPolicyScope: failed to fetch definition values for ADMX policy $($RawPolicy.id): $($_.Exception.Message)"
+            }
+
+            # Direct assignment keeps the result an array; a single-element
+            # array returned from an if-expression would unroll to a scalar.
+            $classTypes = @()
+            if ($policyId) { $classTypes = @($script:LKAdmxClassCache[$policyId]) }
+
+            switch ($classTypes.Count) {
+                0 { }  # No class info resolved - fall through to name-based heuristic
+                1 {
+                    if ($classTypes[0] -eq 'user')    { return 'User' }
+                    if ($classTypes[0] -eq 'machine') { return 'Device' }
+                }
+                default {
+                    # Mixed user + machine ADMX settings - valid for either target
+                    return 'Both'
+                }
             }
             # Fall through to name-based heuristic
         }
