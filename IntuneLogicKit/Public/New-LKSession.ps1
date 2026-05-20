@@ -26,8 +26,11 @@ function New-LKSession {
         Import-Module Microsoft.Graph.Authentication -ErrorAction Stop
     }
 
-    # Delegated sign-in - opens a browser window, no app registration needed
-    Connect-MgGraph -Scopes $script:LKRequiredScopes -NoWelcome -ErrorAction Stop
+    # Delegated sign-in - opens a browser window, no app registration needed.
+    # -ContextScope Process keeps the Graph token cache in-memory for this
+    # PowerShell session only. The shared on-disk MSAL cache can fall out of
+    # sync (especially in cross-tenant scenarios) and re-prompt on every call.
+    Connect-MgGraph -Scopes $script:LKRequiredScopes -ContextScope Process -NoWelcome -ErrorAction Stop
 
     $context = Get-MgContext
 
